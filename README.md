@@ -24,6 +24,12 @@ A modern, high-performance take on the classic Snake game, built with **Rust** f
 
 ## 🚀 Quick Start
 
+## 📦 Downloads
+
+The latest pre-compiled binaries for **Rustnake** can be found on the [Releases Page](https://github.com/MiguelRegueiro/rustnake/releases). 
+
+No Rust installation required—just download the executable for your OS, give it execution permissions, and play!
+
 ### Prerequisites
 
 * [Rust & Cargo](https://rustup.rs/) (Latest stable)
