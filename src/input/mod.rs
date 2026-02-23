@@ -13,6 +13,7 @@ pub enum GameInput {
     MenuSelect(usize),
     MenuConfirm,
     ToggleMute,
+    Resize(u16, u16),
 }
 
 pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
@@ -20,33 +21,47 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
 
     thread::spawn(move || {
         loop {
-            if let Ok(Event::Key(KeyEvent { code, kind, .. })) = event::read() {
-                if kind != KeyEventKind::Press {
-                    continue;
-                }
+            if let Ok(event) = event::read() {
+                let maybe_input = match event {
+                    Event::Resize(width, height) => Some(GameInput::Resize(width, height)),
+                    Event::Key(KeyEvent { code, kind, .. }) => {
+                        if kind != KeyEventKind::Press {
+                            None
+                        } else {
+                            match code {
+                                KeyCode::Char('q') | KeyCode::Char('Q') => Some(GameInput::Quit),
+                                KeyCode::Char('p') | KeyCode::Char('P') => Some(GameInput::Pause),
+                                KeyCode::Char('m') | KeyCode::Char('M') => {
+                                    Some(GameInput::ToggleMute)
+                                }
+                                KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Up => {
+                                    Some(GameInput::Direction(crate::utils::Direction::Up))
+                                }
+                                KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Down => {
+                                    Some(GameInput::Direction(crate::utils::Direction::Down))
+                                }
+                                KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Left => {
+                                    Some(GameInput::Direction(crate::utils::Direction::Left))
+                                }
+                                KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Right => {
+                                    Some(GameInput::Direction(crate::utils::Direction::Right))
+                                }
+                                KeyCode::Char('1') => Some(GameInput::MenuSelect(0)),
+                                KeyCode::Char('2') => Some(GameInput::MenuSelect(1)),
+                                KeyCode::Char('3') => Some(GameInput::MenuSelect(2)),
+                                KeyCode::Enter | KeyCode::Char('\n') => {
+                                    Some(GameInput::MenuConfirm)
+                                }
+                                KeyCode::Char(' ') => Some(GameInput::MenuConfirm), // Use space to confirm menu selections
+                                _ => None, // Ignore other keys
+                            }
+                        }
+                    }
+                    _ => None,
+                };
 
-                let input = match code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => GameInput::Quit,
-                    KeyCode::Char('p') | KeyCode::Char('P') => GameInput::Pause,
-                    KeyCode::Char('m') | KeyCode::Char('M') => GameInput::ToggleMute,
-                    KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Up => {
-                        GameInput::Direction(crate::utils::Direction::Up)
-                    }
-                    KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Down => {
-                        GameInput::Direction(crate::utils::Direction::Down)
-                    }
-                    KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Left => {
-                        GameInput::Direction(crate::utils::Direction::Left)
-                    }
-                    KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Right => {
-                        GameInput::Direction(crate::utils::Direction::Right)
-                    }
-                    KeyCode::Char('1') => GameInput::MenuSelect(0),
-                    KeyCode::Char('2') => GameInput::MenuSelect(1),
-                    KeyCode::Char('3') => GameInput::MenuSelect(2),
-                    KeyCode::Enter | KeyCode::Char('\n') => GameInput::MenuConfirm,
-                    KeyCode::Char(' ') => GameInput::MenuConfirm, // Use space to confirm menu selections
-                    _ => continue,                                // Ignore other keys
+                let Some(input) = maybe_input else {
+                    continue;
                 };
 
                 if tx.send(input.clone()).is_err() {

@@ -16,6 +16,7 @@ use std::{
 
 mod core;
 mod input;
+mod layout;
 mod render;
 mod storage;
 mod utils;
@@ -35,14 +36,22 @@ impl Drop for TerminalGuard {
     }
 }
 
-fn show_menu(rx: &mpsc::Receiver<GameInput>) -> Option<Difficulty> {
+fn show_menu(rx: &mpsc::Receiver<GameInput>, term_size: &mut (u16, u16)) -> Option<Difficulty> {
     let mut selected_option = 0; // 0 = Easy, 1 = Medium, 2 = Hard
 
     loop {
-        render::draw_menu(selected_option, utils::WIDTH, utils::HEIGHT);
+        let layout_check =
+            layout::compute_layout(term_size.0, term_size.1, utils::WIDTH, utils::HEIGHT);
+        match layout_check {
+            Ok(_) => render::draw_menu(selected_option, term_size.0, term_size.1),
+            Err(size_check) => render::draw_size_warning(size_check),
+        }
 
         if let Ok(input_cmd) = rx.recv() {
             match input_cmd {
+                GameInput::Resize(width, height) => {
+                    *term_size = (width, height);
+                }
                 GameInput::MenuSelect(option) => {
                     selected_option = option.min(2);
                 }
@@ -55,12 +64,14 @@ fn show_menu(rx: &mpsc::Receiver<GameInput>) -> Option<Difficulty> {
                     }
                 }
                 GameInput::MenuConfirm => {
-                    return Some(match selected_option {
-                        0 => Difficulty::Easy,
-                        1 => Difficulty::Medium,
-                        2 => Difficulty::Hard,
-                        _ => Difficulty::Medium, // fallback
-                    });
+                    if layout_check.is_ok() {
+                        return Some(match selected_option {
+                            0 => Difficulty::Easy,
+                            1 => Difficulty::Medium,
+                            2 => Difficulty::Hard,
+                            _ => Difficulty::Medium, // fallback
+                        });
+                    }
                 }
                 GameInput::Quit => {
                     return None;
@@ -91,11 +102,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Input handling channel
     let rx = input::setup_input_handler();
     let mut high_scores: HighScores = storage::load_high_scores();
+    let mut term_size = layout::terminal_size();
 
     // Main game loop with restart capability
     'game_loop: loop {
         // Show difficulty selection menu
-        let Some(difficulty) = show_menu(&rx) else {
+        let Some(difficulty) = show_menu(&rx, &mut term_size) else {
             break;
         };
 
@@ -106,7 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             utils::HEIGHT,
             high_scores.get(difficulty),
         );
-        render::draw_static_frame(game.width, game.height);
+        let mut active_layout: Option<layout::Layout> = None;
         let mut last_tick = Instant::now();
         let mut direction_queue: VecDeque<utils::Direction> = VecDeque::with_capacity(2);
 
@@ -121,6 +133,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 while let Ok(input_cmd) = rx.try_recv() {
                     // Process MenuConfirm immediately, otherwise respect cooldown
                     match input_cmd {
+                        GameInput::Resize(width, height) => {
+                            term_size = (width, height);
+                        }
                         GameInput::MenuConfirm => {
                             return_to_menu = true;
                             break;
@@ -149,6 +164,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if return_to_menu {
                     continue 'game_loop;
+                }
+
+                let layout =
+                    match layout::compute_layout(term_size.0, term_size.1, game.width, game.height)
+                    {
+                        Ok(layout) => layout,
+                        Err(size_check) => {
+                            render::draw_size_warning(size_check);
+                            active_layout = None;
+                            thread::sleep(Duration::from_millis(25));
+                            continue;
+                        }
+                    };
+                if active_layout != Some(layout) {
+                    render::draw_static_frame(&layout);
+                    active_layout = Some(layout);
                 }
 
                 // Determine the tick rate based on the current direction and power-ups
@@ -185,9 +216,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Draw everything
-                render::draw(&mut game);
+                render::draw(&mut game, &layout);
             } else {
-                render::draw(&mut game);
+                while let Ok(input_cmd) = rx.try_recv() {
+                    match input_cmd {
+                        GameInput::Resize(width, height) => {
+                            term_size = (width, height);
+                        }
+                        GameInput::MenuConfirm => {
+                            // Space bar to go back to menu
+                            continue 'game_loop;
+                        }
+                        GameInput::Quit => {
+                            break 'game_loop; // Quit the game
+                        }
+                        _ => {}
+                    }
+                }
+
+                let layout =
+                    match layout::compute_layout(term_size.0, term_size.1, game.width, game.height)
+                    {
+                        Ok(layout) => layout,
+                        Err(size_check) => {
+                            render::draw_size_warning(size_check);
+                            active_layout = None;
+                            thread::sleep(Duration::from_millis(25));
+                            continue;
+                        }
+                    };
+                if active_layout != Some(layout) {
+                    render::draw_static_frame(&layout);
+                    active_layout = Some(layout);
+                }
+                render::draw(&mut game, &layout);
             }
 
             // Check for game over and handle input differently
@@ -195,6 +257,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // During game over, we handle input from the channel
                 if let Ok(input_cmd) = rx.recv_timeout(Duration::from_millis(100)) {
                     match input_cmd {
+                        GameInput::Resize(width, height) => {
+                            term_size = (width, height);
+                        }
                         GameInput::MenuConfirm => {
                             // Space bar to go back to menu
                             continue 'game_loop;

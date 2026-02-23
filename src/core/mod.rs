@@ -409,7 +409,7 @@ impl Game {
         // Use terminal bell character to simulate sound
         if !self.muted {
             print!("\x07"); // Terminal bell
-            std::io::stdout().flush().unwrap();
+            let _ = std::io::stdout().flush();
         }
     }
 
