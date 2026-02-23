@@ -1,7 +1,7 @@
 //! Input handling module for the Snake game.
 //! Manages keyboard input and translates it to game commands.
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use std::sync::mpsc;
 use std::thread;
 
@@ -20,21 +20,25 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
 
     thread::spawn(move || {
         loop {
-            if let Ok(Event::Key(KeyEvent { code, .. })) = event::read() {
+            if let Ok(Event::Key(KeyEvent { code, kind, .. })) = event::read() {
+                if kind != KeyEventKind::Press {
+                    continue;
+                }
+
                 let input = match code {
-                    KeyCode::Char('q') => GameInput::Quit,
-                    KeyCode::Char('p') => GameInput::Pause,
-                    KeyCode::Char('m') => GameInput::ToggleMute,
-                    KeyCode::Char('w') | KeyCode::Up => {
+                    KeyCode::Char('q') | KeyCode::Char('Q') => GameInput::Quit,
+                    KeyCode::Char('p') | KeyCode::Char('P') => GameInput::Pause,
+                    KeyCode::Char('m') | KeyCode::Char('M') => GameInput::ToggleMute,
+                    KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Up => {
                         GameInput::Direction(crate::utils::Direction::Up)
                     }
-                    KeyCode::Char('s') | KeyCode::Down => {
+                    KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Down => {
                         GameInput::Direction(crate::utils::Direction::Down)
                     }
-                    KeyCode::Char('a') | KeyCode::Left => {
+                    KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Left => {
                         GameInput::Direction(crate::utils::Direction::Left)
                     }
-                    KeyCode::Char('d') | KeyCode::Right => {
+                    KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Right => {
                         GameInput::Direction(crate::utils::Direction::Right)
                     }
                     KeyCode::Char('1') => GameInput::MenuSelect(0),
@@ -42,7 +46,7 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                     KeyCode::Char('3') => GameInput::MenuSelect(2),
                     KeyCode::Enter | KeyCode::Char('\n') => GameInput::MenuConfirm,
                     KeyCode::Char(' ') => GameInput::MenuConfirm, // Use space to confirm menu selections
-                    _ => continue, // Ignore other keys
+                    _ => continue,                                // Ignore other keys
                 };
 
                 if tx.send(input.clone()).is_err() {

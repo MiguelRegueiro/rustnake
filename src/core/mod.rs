@@ -12,18 +12,29 @@ pub struct Snake {
 }
 
 impl Snake {
-    pub fn new() -> Self {
+    pub fn new(width: u16, height: u16) -> Self {
+        let center_x = (width / 2).max(3);
+        let center_y = (height / 2).max(2);
         Snake {
             body: vec![
-                Position { x: 10, y: 10 }, // Head
-                Position { x: 11, y: 10 },
-                Position { x: 12, y: 10 }, // Tail
+                Position {
+                    x: center_x,
+                    y: center_y,
+                }, // Head
+                Position {
+                    x: center_x + 1,
+                    y: center_y,
+                },
+                Position {
+                    x: center_x + 2,
+                    y: center_y,
+                }, // Tail
             ],
             direction: Direction::Left,
         }
     }
 
-    pub fn move_forward(&mut self, grow: bool, width: u16, height: u16) {
+    pub fn next_head(&self, width: u16, height: u16) -> Position {
         let head = self.body[0];
         let mut new_head = match self.direction {
             Direction::Up => Position {
@@ -44,19 +55,24 @@ impl Snake {
             },
         };
 
-        // Wrap around the screen edges (Nokia style)
-        if new_head.x == 0 {
-            new_head.x = width - 2; // -2 to account for border
-        } else if new_head.x == width - 1 {
-            new_head.x = 1; // +1 to account for border
+        // Wrap around the screen edges (Nokia style) while keeping movement inside borders.
+        if new_head.x <= 1 {
+            new_head.x = width - 1;
+        } else if new_head.x >= width {
+            new_head.x = 2;
         }
 
-        if new_head.y == 0 {
-            new_head.y = height - 2; // -2 to account for border
-        } else if new_head.y == height - 1 {
-            new_head.y = 1; // +1 to account for border
+        if new_head.y <= 1 {
+            new_head.y = height - 1;
+        } else if new_head.y >= height {
+            new_head.y = 2;
         }
 
+        new_head
+    }
+
+    pub fn move_forward(&mut self, grow: bool, width: u16, height: u16) {
+        let new_head = self.next_head(width, height);
         self.body.insert(0, new_head);
 
         if !grow {
@@ -88,11 +104,13 @@ pub struct Game {
     pub snake: Snake,
     pub food: Position,
     pub score: u32,
+    pub high_score: u32,
     pub game_over: bool,
     pub difficulty: Difficulty,
     pub paused: bool,
     pub power_up: Option<PowerUp>,
     pub power_up_timer: Option<u32>, // Counter for how long power-up effect lasts
+    pub active_speed_effect: Option<PowerUpType>,
     // Positions that need to be redrawn
     pub dirty_positions: HashSet<Position>,
     pub width: u16,
@@ -101,16 +119,18 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(difficulty: Difficulty, width: u16, height: u16) -> Self {
+    pub fn new(difficulty: Difficulty, width: u16, height: u16, high_score: u32) -> Self {
         let mut game = Game {
-            snake: Snake::new(),
+            snake: Snake::new(width, height),
             food: Position { x: 0, y: 0 },
             score: 0,
+            high_score,
             game_over: false,
             difficulty,
             paused: false,
             power_up: None,
             power_up_timer: None,
+            active_speed_effect: None,
             dirty_positions: HashSet::new(),
             width,
             height,
@@ -159,6 +179,7 @@ impl Game {
     pub fn check_power_up_collision(&mut self) {
         if let Some(power_up) = self.power_up {
             if self.snake.head_position() == power_up.position && power_up.active {
+                self.mark_position_dirty(power_up.position);
                 self.apply_power_up_effect(power_up.power_up_type);
                 self.power_up = None; // Remove the power-up after collecting it
                 self.generate_power_up(); // Generate a new one
@@ -171,15 +192,18 @@ impl Game {
             PowerUpType::SpeedBoost => {
                 // Temporarily increase snake speed (handled in main loop)
                 self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.active_speed_effect = Some(PowerUpType::SpeedBoost);
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::SlowDown => {
                 // Temporarily decrease snake speed
                 self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.active_speed_effect = Some(PowerUpType::SlowDown);
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::ExtraPoints => {
                 self.score += 50; // Add extra points
+                self.update_high_score();
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::Grow => {
@@ -187,16 +211,18 @@ impl Game {
                 for _ in 0..2 {
                     if let Some(last_segment) = self.snake.body.last().copied() {
                         self.snake.body.push(last_segment);
+                        self.mark_position_dirty(last_segment);
                     }
                 }
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::Shrink => {
                 // Shrink the snake by removing 2 segments (but keep at least 3)
-                if self.snake.body.len() > 3 {
-                    self.snake.body.pop();
+                for _ in 0..2 {
                     if self.snake.body.len() > 3 {
-                        self.snake.body.pop();
+                        if let Some(removed) = self.snake.body.pop() {
+                            self.mark_position_dirty(removed);
+                        }
                     }
                 }
                 self.play_sound(); // Play sound when collecting power-up
@@ -209,7 +235,40 @@ impl Game {
             *timer -= 1;
             if *timer == 0 {
                 self.power_up_timer = None; // Remove the effect when timer reaches 0
+                self.active_speed_effect = None;
             }
+        }
+    }
+
+    pub fn speed_multiplier_percent(&self) -> u64 {
+        match (self.power_up_timer, self.active_speed_effect) {
+            (Some(_), Some(PowerUpType::SpeedBoost)) => 70,
+            (Some(_), Some(PowerUpType::SlowDown)) => 150,
+            _ => 100,
+        }
+    }
+
+    pub fn difficulty_speed_multiplier_percent(&self) -> u64 {
+        // Speeds up 3% every 50 points, capped at 45% faster.
+        let steps = (self.score / 50).min(15) as u64;
+        100u64.saturating_sub(steps * 3)
+    }
+
+    pub fn active_speed_effect_label(&self) -> Option<&'static str> {
+        match (self.power_up_timer, self.active_speed_effect) {
+            (Some(_), Some(PowerUpType::SpeedBoost)) => Some("Speed Boost"),
+            (Some(_), Some(PowerUpType::SlowDown)) => Some("Slow Down"),
+            _ => None,
+        }
+    }
+
+    pub fn speed_effect_ticks_left(&self) -> u32 {
+        self.power_up_timer.unwrap_or(0)
+    }
+
+    pub fn update_high_score(&mut self) {
+        if self.score > self.high_score {
+            self.high_score = self.score;
         }
     }
 
@@ -222,12 +281,16 @@ impl Game {
 
         loop {
             let new_food = Position {
-                x: rng.gen_range(1..self.width - 1),
-                y: rng.gen_range(1..self.height - 1),
+                x: rng.gen_range(2..self.width),
+                y: rng.gen_range(2..self.height),
             };
 
-            // Make sure food doesn't appear on snake
-            if !self.snake.overlaps_with(new_food) {
+            // Make sure food doesn't appear on snake or on top of a power-up.
+            let food_overlaps_power_up = self
+                .power_up
+                .map(|power_up| power_up.position == new_food)
+                .unwrap_or(false);
+            if !self.snake.overlaps_with(new_food) && !food_overlaps_power_up {
                 // Mark old food position as dirty
                 self.mark_position_dirty(self.food);
                 self.food = new_food;
@@ -250,8 +313,8 @@ impl Game {
             // 30% chance to spawn a power-up
             loop {
                 let new_power_up_pos = Position {
-                    x: rng.gen_range(1..self.width - 1),
-                    y: rng.gen_range(1..self.height - 1),
+                    x: rng.gen_range(2..self.width),
+                    y: rng.gen_range(2..self.height),
                 };
 
                 // Make sure power-up doesn't appear on snake or food
@@ -289,22 +352,22 @@ impl Game {
             return;
         }
 
-        // Remember the tail position before moving (for clearing later)
-        let old_tail_positions: Vec<Position> = self.snake.body.to_vec();
-
+        let old_body_positions = self.snake.body.clone();
+        let next_head = self.snake.next_head(self.width, self.height);
+        let grow = next_head == self.food;
+        self.snake.move_forward(grow, self.width, self.height);
         let head_pos = self.snake.head_position();
 
-        // Check for collisions with self only (walls wrap around now)
+        // Check collision after movement so collision/eat behavior happens on the correct tick.
         if self.snake.body[1..].contains(&head_pos) {
             self.game_over = true;
             self.play_sound(); // Play sound when game over
-            return;
         }
 
         // Check if snake ate the food
-        let grow = head_pos == self.food;
         if grow {
             self.score += 10;
+            self.update_high_score();
             // Mark old food position as dirty
             self.mark_position_dirty(self.food);
             self.generate_food();
@@ -328,22 +391,13 @@ impl Game {
             self.generate_power_up();
         }
 
-        self.snake.move_forward(grow, self.width, self.height);
-
-        // Mark positions as dirty
-        // Mark the new head position
-        self.mark_position_dirty(self.snake.head_position());
-
-        // Mark the old head position (which is now the second segment)
-        if self.snake.body.len() > 1 {
-            self.mark_position_dirty(self.snake.body[1]);
+        // Mark old and new body positions as dirty to support incremental redraw.
+        for pos in old_body_positions {
+            self.mark_position_dirty(pos);
         }
-
-        // If not growing, mark the old tail position as dirty (to clear it)
-        if !grow && old_tail_positions.len() > self.snake.body.len() {
-            if let Some(old_tail) = old_tail_positions.last() {
-                self.mark_position_dirty(*old_tail);
-            }
+        let new_body_positions = self.snake.body.clone();
+        for pos in new_body_positions {
+            self.mark_position_dirty(pos);
         }
     }
 
@@ -361,5 +415,160 @@ impl Game {
 
     pub fn toggle_mute(&mut self) {
         self.muted = !self.muted;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_game() -> Game {
+        let mut game = Game::new(Difficulty::Medium, 20, 12, 0);
+        game.power_up = None;
+        game.power_up_timer = None;
+        game.active_speed_effect = None;
+        game
+    }
+
+    #[test]
+    fn snake_wraps_left_across_border() {
+        let mut snake = Snake {
+            body: vec![
+                Position { x: 2, y: 5 },
+                Position { x: 3, y: 5 },
+                Position { x: 4, y: 5 },
+            ],
+            direction: Direction::Left,
+        };
+
+        snake.move_forward(false, 20, 12);
+        assert_eq!(snake.head_position(), Position { x: 19, y: 5 });
+    }
+
+    #[test]
+    fn snake_wraps_up_across_border() {
+        let mut snake = Snake {
+            body: vec![
+                Position { x: 8, y: 2 },
+                Position { x: 8, y: 3 },
+                Position { x: 8, y: 4 },
+            ],
+            direction: Direction::Up,
+        };
+
+        snake.move_forward(false, 20, 12);
+        assert_eq!(snake.head_position(), Position { x: 8, y: 11 });
+    }
+
+    #[test]
+    fn snake_cannot_reverse_direction() {
+        let mut snake = Snake {
+            body: vec![
+                Position { x: 5, y: 5 },
+                Position { x: 6, y: 5 },
+                Position { x: 7, y: 5 },
+            ],
+            direction: Direction::Left,
+        };
+
+        snake.change_direction(Direction::Right);
+        assert_eq!(snake.direction, Direction::Left);
+    }
+
+    #[test]
+    fn snake_can_turn_perpendicular() {
+        let mut snake = Snake {
+            body: vec![
+                Position { x: 5, y: 5 },
+                Position { x: 6, y: 5 },
+                Position { x: 7, y: 5 },
+            ],
+            direction: Direction::Left,
+        };
+
+        snake.change_direction(Direction::Up);
+        assert_eq!(snake.direction, Direction::Up);
+    }
+
+    #[test]
+    fn tick_applies_food_collision_immediately() {
+        let mut game = make_game();
+        game.snake.body = vec![
+            Position { x: 6, y: 5 },
+            Position { x: 7, y: 5 },
+            Position { x: 8, y: 5 },
+        ];
+        game.snake.direction = Direction::Left;
+        game.food = Position { x: 5, y: 5 };
+
+        game.tick();
+
+        assert_eq!(game.score, 10);
+        assert_eq!(game.snake.body.len(), 4);
+        assert_eq!(game.snake.head_position(), Position { x: 5, y: 5 });
+    }
+
+    #[test]
+    fn tick_detects_self_collision_after_move() {
+        let mut game = make_game();
+        game.snake.body = vec![
+            Position { x: 5, y: 5 },
+            Position { x: 5, y: 6 },
+            Position { x: 6, y: 6 },
+            Position { x: 6, y: 5 },
+            Position { x: 6, y: 4 },
+            Position { x: 5, y: 4 },
+        ];
+        game.snake.direction = Direction::Right;
+        game.food = Position { x: 2, y: 2 };
+
+        game.tick();
+
+        assert!(game.game_over);
+    }
+
+    #[test]
+    fn speed_effect_uses_collected_power_up_type() {
+        let mut game = make_game();
+        game.apply_power_up_effect(PowerUpType::SpeedBoost);
+        game.power_up = Some(PowerUp {
+            position: Position { x: 2, y: 2 },
+            power_up_type: PowerUpType::SlowDown,
+            active: true,
+        });
+
+        assert_eq!(game.speed_multiplier_percent(), 70);
+    }
+
+    #[test]
+    fn speed_effect_expires_after_timer_runs_out() {
+        let mut game = make_game();
+        game.apply_power_up_effect(PowerUpType::SlowDown);
+
+        for _ in 0..100 {
+            game.update_power_up_effects();
+        }
+
+        assert_eq!(game.power_up_timer, None);
+        assert!(game.active_speed_effect.is_none());
+        assert_eq!(game.speed_multiplier_percent(), 100);
+    }
+
+    #[test]
+    fn high_score_updates_when_score_increases() {
+        let mut game = Game::new(Difficulty::Easy, 20, 12, 120);
+        game.score = 130;
+        game.update_high_score();
+        assert_eq!(game.high_score, 130);
+    }
+
+    #[test]
+    fn difficulty_speed_multiplier_scales_and_caps() {
+        let mut game = make_game();
+        game.score = 50;
+        assert_eq!(game.difficulty_speed_multiplier_percent(), 97);
+
+        game.score = 1_000;
+        assert_eq!(game.difficulty_speed_multiplier_percent(), 55);
     }
 }

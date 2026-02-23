@@ -4,29 +4,34 @@
 use crate::core::Game;
 use std::io::Write;
 
-pub fn draw(game: &Game) {
-    // Clear screen
-    print!("\x1b[2J");
+fn draw_border(width: u16, height: u16) {
+    let inner_width = width.saturating_sub(2) as usize;
+    let top = format!("┌{}┐", "─".repeat(inner_width));
+    let bottom = format!("└{}┘", "─".repeat(inner_width));
 
-    // Draw top border
-    print!("\x1b[1;1H┌"); // Top-left corner (starting at 1,1 to account for 1-indexing)
-    for x in 2..game.width {
-        print!("\x1b[1;{}H─", x);
-    }
-    print!("\x1b[1;{}H┐", game.width); // Top-right corner
+    print!("\x1b[1;1H{}", top);
+    print!("\x1b[{};1H{}", height, bottom);
 
-    // Draw bottom border
-    print!("\x1b[{};1H└", game.height); // Bottom-left corner
-    for x in 2..game.width {
-        print!("\x1b[{};{}H─", game.height, x);
+    for y in 2..height {
+        print!("\x1b[{};1H│", y);
+        print!("\x1b[{};{}H│", y, width);
     }
-    print!("\x1b[{};{}H┘", game.height, game.width); // Bottom-right corner
+}
 
-    // Draw left and right borders
-    for y in 2..game.height {
-        print!("\x1b[{};1H│", y); // Left border
-        print!("\x1b[{};{}H│", y, game.width); // Right border
+pub fn draw_static_frame(width: u16, height: u16) {
+    print!("\x1b[2J\x1b[H");
+    draw_border(width, height);
+
+    std::io::stdout().flush().unwrap();
+}
+
+pub fn draw(game: &mut Game) {
+    for pos in &game.dirty_positions {
+        print!("\x1b[{};{}H ", pos.y, pos.x);
     }
+
+    // Re-draw border every frame so the playfield frame is always continuous.
+    draw_border(game.width, game.height);
 
     // Draw snake
     for (i, pos) in game.snake.body.iter().enumerate() {
@@ -86,6 +91,7 @@ pub fn draw(game: &Game) {
     print!("\x1b[0m");
 
     // Draw score
+    print!("\x1b[{};1H\x1b[K", game.height + 2);
     print!("\x1b[{};{}HScore: {}", game.height + 2, 2, game.score);
 
     // Draw difficulty
@@ -94,22 +100,51 @@ pub fn draw(game: &Game) {
         crate::utils::Difficulty::Medium => "Difficulty: Medium",
         crate::utils::Difficulty::Hard => "Difficulty: Hard",
     };
-    print!("\x1b[{};{}H{}", game.height + 2, 15, difficulty_text); // Positioned away from score
+    print!("\x1b[{};{}H{}", game.height + 2, 15, difficulty_text);
 
     // Draw pause indicator
     if game.is_paused() {
-        print!("\x1b[{};{}HPAUSED", game.height + 2, 35); // Positioned away from other texts
+        print!("\x1b[{};{}HPAUSED", game.height + 2, 35);
     }
 
     // Draw mute indicator
     if game.muted {
-        print!("\x1b[{};{}HMUTED", game.height + 2, 45); // Positioned away from other texts
+        print!("\x1b[{};{}HMUTED", game.height + 2, 45);
+    }
+
+    // Draw progression/speed telemetry.
+    let progression_multiplier = game.difficulty_speed_multiplier_percent();
+    let power_up_multiplier = game.speed_multiplier_percent();
+    let combined_multiplier = progression_multiplier * power_up_multiplier / 100;
+    let difficulty_short = match game.difficulty {
+        crate::utils::Difficulty::Easy => "Easy",
+        crate::utils::Difficulty::Medium => "Med",
+        crate::utils::Difficulty::Hard => "Hard",
+    };
+    print!("\x1b[{};1H\x1b[K", game.height + 3);
+    print!(
+        "\x1b[{};{}HBest ({}): {}  Pace: {}%",
+        game.height + 3,
+        2,
+        difficulty_short,
+        game.high_score,
+        combined_multiplier
+    );
+    if let Some(effect_label) = game.active_speed_effect_label() {
+        print!(
+            "\x1b[{};{}HEffect: {} ({} ticks)",
+            game.height + 3,
+            24,
+            effect_label,
+            game.speed_effect_ticks_left()
+        );
     }
 
     // Draw controls reminder - at the bottom, away from other info
+    print!("\x1b[{};1H\x1b[K", game.height + 5);
     print!(
-        "\x1b[{};{}HWASD/Arrows:Move P:Pause M:Mute SPACE:Restart Q:Quit",
-        game.height + 4,
+        "\x1b[{};{}HWASD/Arrows:Move P:Pause M:Mute SPACE:Menu Q:Quit",
+        game.height + 5,
         2
     );
 
@@ -149,7 +184,7 @@ pub fn draw(game: &Game) {
             "\x1b[{};{}H║{: ^width$}║",
             (game.height / 2) + 2 + 1, // Adjust for new border position
             box_start_x + 1,           // Adjust for new border position
-            "Press SPACE to play again",
+            "Press SPACE to menu",
             width = box_width - 2
         );
         print!(
@@ -168,6 +203,7 @@ pub fn draw(game: &Game) {
     }
 
     std::io::stdout().flush().unwrap();
+    game.dirty_positions.clear();
 }
 
 pub fn draw_menu(selected_option: usize, width: u16, _height: u16) {
