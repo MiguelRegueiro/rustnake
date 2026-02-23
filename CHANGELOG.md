@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning in spirit for game updates.
 
-## [Unreleased] - 2026-02-23
+## [1.1.0] - 2026-02-23
 
 ### Added
 - `CHANGELOG.md` for structured release tracking.
@@ -21,6 +21,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - centered map/HUD/menu/game-over layout
   - centered/clipped HUD and warning text to prevent resize artifacts
 - Minimum terminal width is now derived from the controls/help text for readable HUD output.
+- README was redesigned for cleaner release UX (centered gameplay preview, polished badges, and streamlined install/update instructions).
 
 ### Fixed
 - `SPACE`/menu and quit flows now behave consistently across gameplay and game-over states.
