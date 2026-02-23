@@ -1,18 +1,10 @@
 <h1 align="center">Rustnake</h1>
 
 <p align="center">
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
-    <img alt="Latest Release" src="https://img.shields.io/github/v/release/MiguelRegueiro/rustnake?display_name=tag">
-  </a>
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
-    <img alt="Downloads" src="https://img.shields.io/github/downloads/MiguelRegueiro/rustnake/total">
-  </a>
-  <a href="LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/MiguelRegueiro/rustnake">
-  </a>
-  <a href="https://www.rust-lang.org/">
-    <img alt="Rust" src="https://img.shields.io/badge/rust-edition%202021-orange">
-  </a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Latest Version" src="https://img.shields.io/github/v/tag/MiguelRegueiro/rustnake?sort=semver"></a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMiguelRegueiro%2Frustnake%2Freleases%2Flatest&query=%24.assets%5B0%5D.download_count&label=downloads"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/MiguelRegueiro/rustnake"></a>
+  <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-edition%202021-orange"></a>
 </p>
 
 <p align="center">
@@ -20,15 +12,9 @@ Terminal Snake, built in Rust, with responsive rendering, deterministic tick beh
 </p>
 
 <p align="center">
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake">
-    <img alt="Download Latest Binary" src="https://img.shields.io/badge/Download-Latest_Binary-1f883d?style=flat">
-  </a>
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
-    <img alt="Releases" src="https://img.shields.io/badge/View-Releases-0969da?style=flat">
-  </a>
-  <a href="https://github.com/MiguelRegueiro/rustnake">
-    <img alt="Source Code" src="https://img.shields.io/badge/Browse-Source_Code-6f42c1?style=flat">
-  </a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake"><img alt="Download Latest Binary" src="https://img.shields.io/badge/Download-Latest_Binary-1f883d?style=flat"></a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Releases" src="https://img.shields.io/badge/View-Releases-0969da?style=flat"></a>
+  <a href="https://github.com/MiguelRegueiro/rustnake"><img alt="Source Code" src="https://img.shields.io/badge/Browse-Source_Code-6f42c1?style=flat"></a>
 </p>
 
 <p align="center">
