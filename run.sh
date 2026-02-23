@@ -1,12 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
-# Script to run the rustnake game
+set -eu
 
-echo "Starting Rustnake Game..."
-echo "Controls: Arrow keys or wasd to move, 'p' to pause, 'm' to mute, 'space' to return to menu, 'q' to quit"
-echo "Note: Walls wrap around (Nokia style) - only colliding with yourself ends the game!"
-echo "Press any key to start..."
-read -n 1 -s
+usage() {
+  cat <<'EOF'
+Usage: ./run.sh [--dev|--release] [-- <rustnake args>]
 
-# Run the game
-cargo run
+Options:
+  --release   Run with release profile (default)
+  --dev       Run with dev profile
+  -h, --help  Show this help message
+EOF
+}
+
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "error: cargo is not installed or not in PATH." >&2
+  exit 1
+fi
+
+profile="--release"
+
+case "${1:-}" in
+  --dev)
+    profile=""
+    shift
+    ;;
+  --release)
+    profile="--release"
+    shift
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+echo "Starting Rustnake..."
+echo "Controls: WASD/Arrows move | P pause | M mute | SPACE menu | Q quit"
+
+if [ -n "$profile" ]; then
+  cargo run "$profile" -- "$@"
+else
+  cargo run -- "$@"
+fi
