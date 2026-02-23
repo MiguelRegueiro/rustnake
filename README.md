@@ -1,40 +1,65 @@
-# Rustnake
+<h1 align="center">Rustnake</h1>
 
-Rustnake is a terminal Snake game written in Rust with responsive centered rendering, fast input handling, and per-difficulty high-score persistence.
+<p align="center">
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
+    <img alt="Latest Release" src="https://img.shields.io/github/v/release/MiguelRegueiro/rustnake?display_name=tag">
+  </a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
+    <img alt="Downloads" src="https://img.shields.io/github/downloads/MiguelRegueiro/rustnake/total">
+  </a>
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/MiguelRegueiro/rustnake">
+  </a>
+  <a href="https://www.rust-lang.org/">
+    <img alt="Rust" src="https://img.shields.io/badge/rust-edition%202021-orange">
+  </a>
+</p>
 
-## Contents
+<p align="center">
+Terminal Snake, built in Rust, with responsive rendering, deterministic tick behavior, and modular game architecture.
+</p>
 
-1. [Features](#features)
-2. [Quick Start](#quick-start)
-3. [Gameplay Preview](#gameplay-preview)
-4. [Controls](#controls)
-5. [Gameplay Systems](#gameplay-systems)
-6. [Responsive Layout](#responsive-layout)
-7. [High Scores](#high-scores)
-8. [Project Structure](#project-structure)
-9. [Development](#development)
-10. [Releases and Changelog](#releases-and-changelog)
-11. [Troubleshooting](#troubleshooting)
-12. [License](#license)
+<p align="center">
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake">
+    <img alt="Download Latest Binary" src="https://img.shields.io/badge/Download-Latest_Binary-1f883d?style=flat">
+  </a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/releases">
+    <img alt="Releases" src="https://img.shields.io/badge/View-Releases-0969da?style=flat">
+  </a>
+  <a href="https://github.com/MiguelRegueiro/rustnake">
+    <img alt="Source Code" src="https://img.shields.io/badge/Browse-Source_Code-6f42c1?style=flat">
+  </a>
+</p>
 
-## Features
+<p align="center">
+  <img src="media/rustnakegameplay.webp" alt="Rustnake Gameplay" width="640">
+</p>
 
-- Nokia-style wrap movement (no wall death).
-- Three difficulties: Easy, Medium, Hard.
-- Power-ups that modify speed, score, and snake size.
-- Progressive pace scaling as score increases.
-- Per-difficulty best scores.
-- Centered map and HUD with live resize handling.
-- Safe minimum-size guard when the terminal is too small.
+---
 
 ## Quick Start
 
-### Run prebuilt binary (Linux x86_64)
+### Latest release (fastest, Linux x86_64)
 
 ```bash
-wget https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -O rustnake
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -o rustnake
 chmod +x rustnake
 ./rustnake
+```
+
+Verified target: Linux x86_64.
+
+### Update to the newest release
+
+```bash
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -o rustnake
+chmod +x rustnake
+```
+
+### Check latest published tag
+
+```bash
+curl -fsSL https://api.github.com/repos/MiguelRegueiro/rustnake/releases/latest | grep -m1 '"tag_name"'
 ```
 
 ### Build from source
@@ -47,7 +72,7 @@ cd rustnake
 cargo run --release
 ```
 
-### Use launcher script
+### Local launcher script
 
 ```bash
 ./run.sh           # release mode (default)
@@ -55,13 +80,21 @@ cargo run --release
 ./run.sh --help
 ```
 
-## Gameplay Preview
+---
 
-| Difficulty Menu | Gameplay | Game Over |
-| :---: | :---: | :---: |
-| ![Difficulty Menu](screenshots/difficultymenu.png) | ![Gameplay](screenshots/gameplay.png) | ![Game Over](screenshots/gameover.png) |
 
-## Controls
+## Gameplay
+
+### Features
+
+- Nokia-style wrap movement (no wall death).
+- Three difficulties with distinct base tick rates.
+- Power-ups that affect speed, score, and snake size.
+- Dynamic pace scaling as score increases.
+- Per-difficulty high-score tracking.
+- Centered playfield and HUD with live terminal resize handling.
+
+### Controls
 
 | Action | Key |
 | --- | --- |
@@ -71,12 +104,8 @@ cargo run --release
 | Back to Menu | `SPACE` |
 | Quit | `Q` |
 
-Menu shortcuts:
-
-- `1`, `2`, `3` select difficulty.
-- `ENTER` or `SPACE` confirms selection.
-
-## Gameplay Systems
+- `1`, `2`, `3` select difficulty in menu.
+- `ENTER` or `SPACE` confirms menu selection.
 
 ### Difficulty Tick Rates
 
@@ -86,56 +115,38 @@ Menu shortcuts:
 | Medium | 100ms | 200ms |
 | Hard | 60ms | 120ms |
 
-### Scoring
+### Scoring and Power-Ups
 
 - Basic food (`●`): `+10`
 - Milestone marker (`★`): shown at score multiples of `50`
+- Speed Boost (`>`): temporary faster movement
+- Slow Down (`<`): temporary slower movement
+- Bonus (`$`): instant `+50`
+- Grow (`+`): adds 2 segments
+- Shrink (`-`): removes up to 2 segments (minimum length preserved)
 
-### Power-Ups
+---
 
-| Icon | Type | Effect |
-| --- | --- | --- |
-| `>` | Speed Boost | Temporarily increases snake speed |
-| `<` | Slow Down | Temporarily reduces snake speed |
-| `$` | Bonus | Instant `+50` points |
-| `+` | Grow | Adds 2 segments |
-| `-` | Shrink | Removes up to 2 segments (minimum length preserved) |
+## Engineering Highlights
 
-## Responsive Layout
-
-- Map and HUD are centered in the terminal.
-- Resize events are handled in menu, gameplay, and game-over states.
-- Minimum terminal size for default map and HUD: **49x25**.
-- If window size drops below minimum, gameplay pauses and a warning screen is shown.
-- Gameplay resumes automatically once size is valid again.
-
-## High Scores
-
-Best scores are tracked separately for:
-
-- Easy
-- Medium
-- Hard
-
-Persistence:
-
-- `~/.rustnake.toml`
-- Fallback: `./.rustnake.toml` if `HOME` is unavailable
-
-## Project Structure
+- Deterministic tick scheduling with direction-aware tick-rate selection.
+- Bounded 2-step input queue for responsive turns without illegal reversals.
+- Incremental redraw via dirty-position tracking to reduce unnecessary terminal writes.
+- Persistence via `serde` + `toml` for per-difficulty best scores.
+- Unit tests covering movement, collisions, speed effects, and score behavior.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/core/` | Game state, movement, collisions, scoring, power-ups |
-| `src/render/` | Terminal rendering, border, HUD, screens |
-| `src/input/` | Keyboard and resize event handling |
-| `src/layout/` | Centering and minimum terminal size validation |
+| `src/core/` | State, movement, collisions, scoring, power-ups |
+| `src/input/` | Keyboard and resize events |
+| `src/render/` | Terminal drawing and HUD |
+| `src/layout/` | Centering and terminal-size validation |
 | `src/storage/` | High-score persistence |
-| `src/utils/` | Shared constants and types |
+| `src/utils/` | Shared enums, constants, and types |
 
-## Development
+---
 
-Recommended local checks:
+## Proof of Quality
 
 ```bash
 cargo fmt
@@ -144,22 +155,22 @@ cargo clippy --all-targets --all-features
 cargo test
 ```
 
-## Releases and Changelog
+High scores are persisted in:
 
-- Releases: https://github.com/MiguelRegueiro/rustnake/releases
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Current latest published release: **Initial Release (v1.0.0)**
+- `~/.rustnake.toml`
+- Fallback: `./.rustnake.toml` if `HOME` is unavailable
+
+---
 
 ## Troubleshooting
 
-- **Window too small warning**
-  Resize terminal to at least `49x25`.
+- Terminal too small: resize to at least `49x25`.
+- Visual artifacts after resize: resize once more to force full redraw.
+- No bell sound: your terminal may have bell notifications disabled.
 
-- **Visual artifacts after resize**
-  Resize once more; map and HUD redraw on the next loop.
+## Changelog
 
-- **No bell sound**
-  Some terminals disable bell notifications by default.
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 
