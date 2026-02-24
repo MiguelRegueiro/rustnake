@@ -1,9 +1,10 @@
 //! Terminal layout calculations for responsive rendering.
 
+use crate::{i18n, utils::Language};
 use crossterm::terminal;
+use unicode_width::UnicodeWidthStr;
 
 pub const HUD_BOTTOM_PADDING: u16 = 5;
-pub const CONTROLS_TEXT: &str = "WASD/Arrows:Move P:Pause M:Mute SPACE:Menu Q:Quit";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
@@ -58,8 +59,9 @@ pub fn terminal_size() -> (u16, u16) {
     terminal::size().unwrap_or((80, 24))
 }
 
-pub fn min_terminal_size(map_width: u16, map_height: u16) -> MinSize {
-    let min_width = map_width.max(CONTROLS_TEXT.len() as u16);
+pub fn min_terminal_size(map_width: u16, map_height: u16, language: Language) -> MinSize {
+    let controls_width = UnicodeWidthStr::width(i18n::controls_text(language)) as u16;
+    let min_width = map_width.max(controls_width);
     let min_height = map_height + HUD_BOTTOM_PADDING;
     MinSize {
         width: min_width,
@@ -72,8 +74,9 @@ pub fn compute_layout(
     term_height: u16,
     map_width: u16,
     map_height: u16,
+    language: Language,
 ) -> Result<Layout, SizeCheck> {
-    let minimum = min_terminal_size(map_width, map_height);
+    let minimum = min_terminal_size(map_width, map_height, language);
     if term_width < minimum.width || term_height < minimum.height {
         return Err(SizeCheck {
             current_width: term_width,
@@ -99,16 +102,17 @@ pub fn compute_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::Language;
 
     #[test]
     fn rejects_too_small_terminal() {
-        let result = compute_layout(20, 10, 40, 20);
+        let result = compute_layout(20, 10, 40, 20, Language::En);
         assert!(result.is_err());
     }
 
     #[test]
     fn centers_map_on_larger_terminal() {
-        let layout = compute_layout(100, 40, 40, 20).unwrap();
+        let layout = compute_layout(100, 40, 40, 20, Language::En).unwrap();
         assert_eq!(layout.origin_x, 31);
         assert_eq!(layout.origin_y, 8);
         assert_eq!(layout.map_right(), 70);

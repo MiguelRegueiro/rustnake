@@ -13,6 +13,7 @@ pub enum GameInput {
     MenuSelect(usize),
     MenuConfirm,
     ToggleMute,
+    CycleLanguage,
     Resize(u16, u16),
 }
 
@@ -34,6 +35,9 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                                 KeyCode::Char('m') | KeyCode::Char('M') => {
                                     Some(GameInput::ToggleMute)
                                 }
+                                KeyCode::Char('l') | KeyCode::Char('L') => {
+                                    Some(GameInput::CycleLanguage)
+                                }
                                 KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Up => {
                                     Some(GameInput::Direction(crate::utils::Direction::Up))
                                 }
@@ -49,6 +53,8 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                                 KeyCode::Char('1') => Some(GameInput::MenuSelect(0)),
                                 KeyCode::Char('2') => Some(GameInput::MenuSelect(1)),
                                 KeyCode::Char('3') => Some(GameInput::MenuSelect(2)),
+                                KeyCode::Char('4') => Some(GameInput::MenuSelect(3)),
+                                KeyCode::Char('5') => Some(GameInput::MenuSelect(4)),
                                 KeyCode::Enter | KeyCode::Char('\n') => {
                                     Some(GameInput::MenuConfirm)
                                 }

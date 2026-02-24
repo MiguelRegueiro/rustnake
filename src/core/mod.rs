@@ -173,6 +173,55 @@ impl Game {
                 std::time::Duration::from_millis(60),
                 std::time::Duration::from_millis(120),
             ), // Faster
+            Difficulty::Extreme => (
+                std::time::Duration::from_millis(35),
+                std::time::Duration::from_millis(70),
+            ), // Fastest
+        }
+    }
+
+    fn speed_effect_duration_ticks(&self) -> u32 {
+        match self.difficulty {
+            Difficulty::Easy => 120,
+            Difficulty::Medium => 100,
+            Difficulty::Hard => 85,
+            Difficulty::Extreme => 70,
+        }
+    }
+
+    fn power_up_refresh_spawn_chance(&self) -> f32 {
+        match self.difficulty {
+            Difficulty::Easy => 0.35,
+            Difficulty::Medium => 0.30,
+            Difficulty::Hard => 0.24,
+            Difficulty::Extreme => 0.16,
+        }
+    }
+
+    fn power_up_tick_spawn_chance(&self) -> f32 {
+        match self.difficulty {
+            Difficulty::Easy => 0.025,
+            Difficulty::Medium => 0.020,
+            Difficulty::Hard => 0.015,
+            Difficulty::Extreme => 0.010,
+        }
+    }
+
+    fn progression_step_percent(&self) -> u64 {
+        match self.difficulty {
+            Difficulty::Easy => 2,
+            Difficulty::Medium => 3,
+            Difficulty::Hard => 4,
+            Difficulty::Extreme => 5,
+        }
+    }
+
+    fn progression_max_steps(&self) -> u64 {
+        match self.difficulty {
+            Difficulty::Easy => 12,
+            Difficulty::Medium => 15,
+            Difficulty::Hard => 12,
+            Difficulty::Extreme => 13,
         }
     }
 
@@ -191,13 +240,13 @@ impl Game {
         match power_up_type {
             PowerUpType::SpeedBoost => {
                 // Temporarily increase snake speed (handled in main loop)
-                self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.power_up_timer = Some(self.speed_effect_duration_ticks());
                 self.active_speed_effect = Some(PowerUpType::SpeedBoost);
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::SlowDown => {
                 // Temporarily decrease snake speed
-                self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.power_up_timer = Some(self.speed_effect_duration_ticks());
                 self.active_speed_effect = Some(PowerUpType::SlowDown);
                 self.play_sound(); // Play sound when collecting power-up
             }
@@ -249,17 +298,10 @@ impl Game {
     }
 
     pub fn difficulty_speed_multiplier_percent(&self) -> u64 {
-        // Speeds up 3% every 50 points, capped at 45% faster.
-        let steps = (self.score / 50).min(15) as u64;
-        100u64.saturating_sub(steps * 3)
-    }
-
-    pub fn active_speed_effect_label(&self) -> Option<&'static str> {
-        match (self.power_up_timer, self.active_speed_effect) {
-            (Some(_), Some(PowerUpType::SpeedBoost)) => Some("Speed Boost"),
-            (Some(_), Some(PowerUpType::SlowDown)) => Some("Slow Down"),
-            _ => None,
-        }
+        // Difficulty-specific pace scaling: harder modes accelerate faster and cap lower.
+        let steps = (self.score / 50).min(self.progression_max_steps() as u32) as u64;
+        let reduction = steps * self.progression_step_percent();
+        100u64.saturating_sub(reduction)
     }
 
     pub fn speed_effect_ticks_left(&self) -> u32 {
@@ -308,9 +350,8 @@ impl Game {
 
         let mut rng = rand::thread_rng();
 
-        // Random chance to spawn a power-up (lower probability than food)
-        if rng.gen::<f32>() < 0.3 {
-            // 30% chance to spawn a power-up
+        // Difficulty-specific chance to spawn a replacement/initial power-up.
+        if rng.gen::<f32>() < self.power_up_refresh_spawn_chance() {
             loop {
                 let new_power_up_pos = Position {
                     x: rng.gen_range(2..self.width),
@@ -386,8 +427,7 @@ impl Game {
 
         // Random chance to generate a new power-up occasionally
         let mut rng = rand::thread_rng();
-        if self.power_up.is_none() && rng.gen::<f32>() < 0.02 {
-            // 2% chance each tick
+        if self.power_up.is_none() && rng.gen::<f32>() < self.power_up_tick_spawn_chance() {
             self.generate_power_up();
         }
 
@@ -570,5 +610,82 @@ mod tests {
 
         game.score = 1_000;
         assert_eq!(game.difficulty_speed_multiplier_percent(), 55);
+    }
+
+    #[test]
+    fn difficulty_tick_rates_get_faster_by_level() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        let (easy_h, easy_v) = easy.get_tick_rates();
+        let (med_h, med_v) = medium.get_tick_rates();
+        let (hard_h, hard_v) = hard.get_tick_rates();
+        let (ext_h, ext_v) = extreme.get_tick_rates();
+
+        assert!(easy_h > med_h && med_h > hard_h && hard_h > ext_h);
+        assert!(easy_v > med_v && med_v > hard_v && hard_v > ext_v);
+    }
+
+    #[test]
+    fn power_up_spawn_chances_reduce_with_harder_difficulties() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        assert!(
+            easy.power_up_refresh_spawn_chance() > medium.power_up_refresh_spawn_chance()
+                && medium.power_up_refresh_spawn_chance() > hard.power_up_refresh_spawn_chance()
+                && hard.power_up_refresh_spawn_chance() > extreme.power_up_refresh_spawn_chance()
+        );
+        assert!(
+            easy.power_up_tick_spawn_chance() > medium.power_up_tick_spawn_chance()
+                && medium.power_up_tick_spawn_chance() > hard.power_up_tick_spawn_chance()
+                && hard.power_up_tick_spawn_chance() > extreme.power_up_tick_spawn_chance()
+        );
+    }
+
+    #[test]
+    fn speed_effect_duration_shortens_with_harder_difficulties() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        assert!(
+            easy.speed_effect_duration_ticks() > medium.speed_effect_duration_ticks()
+                && medium.speed_effect_duration_ticks() > hard.speed_effect_duration_ticks()
+                && hard.speed_effect_duration_ticks() > extreme.speed_effect_duration_ticks()
+        );
+    }
+
+    #[test]
+    fn progression_scaling_is_stricter_for_harder_difficulties() {
+        let mut easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let mut medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let mut hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let mut extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        easy.score = 500;
+        medium.score = 500;
+        hard.score = 500;
+        extreme.score = 500;
+
+        assert_eq!(easy.difficulty_speed_multiplier_percent(), 80);
+        assert_eq!(medium.difficulty_speed_multiplier_percent(), 70);
+        assert_eq!(hard.difficulty_speed_multiplier_percent(), 60);
+        assert_eq!(extreme.difficulty_speed_multiplier_percent(), 50);
+
+        easy.score = 10_000;
+        medium.score = 10_000;
+        hard.score = 10_000;
+        extreme.score = 10_000;
+
+        assert_eq!(easy.difficulty_speed_multiplier_percent(), 76);
+        assert_eq!(medium.difficulty_speed_multiplier_percent(), 55);
+        assert_eq!(hard.difficulty_speed_multiplier_percent(), 52);
+        assert_eq!(extreme.difficulty_speed_multiplier_percent(), 35);
     }
 }

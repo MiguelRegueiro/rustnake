@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning in spirit for game updates.
 
+## [1.2.0] - 2026-02-24
+
+### Added
+- Full localization layer (`src/i18n/`) and language-aware rendering for all user-facing in-game/menu text.
+- New language support: Spanish (`es`), Japanese (`ja`), Portuguese (`pt`), and Simplified Chinese (`zh`) in addition to English.
+- Persistent language setting in `~/.rustnake.toml` (`[settings].language`) with immediate save on apply.
+- Language-selection popup in difficulty menu (`L`) with list-based selection and confirmation flow.
+- New `Extreme` difficulty mode with its own tick rates and independent high score.
+- High-score schema extension to include `extreme` in `~/.rustnake.toml`.
+- Config schema versioning with `config_version` in `~/.rustnake.toml`.
+- Future roadmap file with planned improvements: `futereupgrades.md`.
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`) that runs `fmt`, `check`, `clippy`, and `test` on PRs and main branch pushes.
+- Storage migration tests for backward compatibility:
+  - old `high_scores` files without `extreme`
+  - legacy single `high_score` format
+  - current v1 config parsing and serialization checks
+  - end-to-end on-disk migration rewrite verification
+- Difficulty balancing tests covering:
+  - per-difficulty tick-rate ordering
+  - per-difficulty spawn-rate scaling
+  - per-difficulty speed-effect duration scaling
+  - per-difficulty progression curve/cap behavior
+
+### Changed
+- Menu now includes 4 difficulty levels: `Easy`, `Medium`, `Hard`, `Extreme`.
+- `Extreme` is faster than `Hard` (35ms horizontal / 70ms vertical base ticks).
+- Difficulty labels are localized across all supported languages, including `Extreme`.
+- Language popup visuals were expanded (larger/taller), with improved background coverage and spacing.
+- Menu title centering logic was refined to avoid 1-cell drift.
+- Difficulty and language list rows are now fixed-width aligned blocks (numbers/labels line up vertically).
+- Difficulty pacing is now mode-specific:
+  - progression acceleration scales by difficulty (`Easy` < `Medium` < `Hard` < `Extreme`)
+  - `Extreme` keeps the fastest base speed and strongest pace ramp
+- Power-up balance is now difficulty-specific:
+  - spawn chances decrease on harder modes (including `Extreme`)
+  - speed effect duration is shorter on harder modes
+- Config loading now uses an explicit migration pipeline:
+  - unversioned/legacy files are migrated to v1 defaults
+  - migrated configs are automatically persisted in v1 format
+- Chinese language label in selector now uses settings-style `简体中文`.
+- Spanish language selector label now uses the correct accented `Español`.
+- Spanish and Portuguese keep the game title as `SNAKE GAME`.
+- Japanese difficulty labels now use kanji-first wording.
+- Spanish and Portuguese mute wording was updated for more natural UI phrasing.
+
+### Fixed
+- Unicode display-width aware clipping/centering now prevents CJK misalignment in menu/HUD/game-over text.
+- Language popup hint/cancel text now fits and aligns correctly.
+- Language changes are now constrained to the level-selection menu flow (no in-game accidental switching).
+
 ## [1.1.0] - 2026-02-23
 
 ### Added
