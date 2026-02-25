@@ -74,10 +74,11 @@ cargo run --release
 ### Features
 
 - Nokia-style wrap movement (no wall death).
-- Three difficulties with distinct base tick rates.
+- Four difficulties with distinct base tick rates (`Easy`, `Medium`, `Hard`, `Extreme`).
 - Power-ups that affect speed, score, and snake size.
 - Dynamic pace scaling as score increases.
 - Per-difficulty high-score tracking.
+- Localized UI (`en`, `es`, `ja`, `pt`, `zh`) with persistent language setting.
 - Centered playfield and HUD with live terminal resize handling.
 
 ### Controls
@@ -90,7 +91,7 @@ cargo run --release
 | Back to Menu | `SPACE` |
 | Quit | `Q` |
 
-- `1`, `2`, `3` select difficulty in menu.
+- Number keys (`1`-`6`) select visible menu options, depending on menu length.
 - `ENTER` or `SPACE` confirms menu selection.
 
 ### Difficulty Tick Rates
@@ -100,6 +101,7 @@ cargo run --release
 | Easy | 150ms | 300ms |
 | Medium | 100ms | 200ms |
 | Hard | 60ms | 120ms |
+| Extreme | 35ms | 70ms |
 
 ### Scoring and Power-Ups
 
@@ -119,11 +121,13 @@ cargo run --release
 - Bounded 2-step input queue for responsive turns without illegal reversals.
 - Incremental redraw via dirty-position tracking to reduce unnecessary terminal writes.
 - Persistence via `serde` + `toml` for per-difficulty best scores.
+- Config migration pipeline for backward-compatible `~/.rustnake.toml` upgrades.
 - Unit tests covering movement, collisions, speed effects, and score behavior.
 
 | Path | Responsibility |
 | --- | --- |
 | `src/core/` | State, movement, collisions, scoring, power-ups |
+| `src/i18n/` | Localization strings and UI text width helpers |
 | `src/input/` | Keyboard and resize events |
 | `src/render/` | Terminal drawing and HUD |
 | `src/layout/` | Centering and terminal-size validation |
@@ -141,7 +145,7 @@ cargo clippy --all-targets --all-features
 cargo test
 ```
 
-High scores are persisted in:
+Config and high scores are persisted in:
 
 - `~/.rustnake.toml`
 - Fallback: `./.rustnake.toml` if `HOME` is unavailable
@@ -150,13 +154,14 @@ High scores are persisted in:
 
 ## Troubleshooting
 
-- Terminal too small: resize to at least `49x25`.
+- Terminal too small: resize until the warning clears (minimum is at least `40x25`, and width can be higher for some languages).
 - Visual artifacts after resize: resize once more to force full redraw.
 - No bell sound: your terminal may have bell notifications disabled.
 
 ## Changelog
 
 - [CHANGELOG.md](CHANGELOG.md)
+- [futureupgrades.md](futureupgrades.md)
 
 ## License
 

@@ -13,6 +13,7 @@ pub enum GameInput {
     MenuSelect(usize),
     MenuConfirm,
     ToggleMute,
+    FocusLost,
     Resize(u16, u16),
 }
 
@@ -24,6 +25,7 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
             if let Ok(event) = event::read() {
                 let maybe_input = match event {
                     Event::Resize(width, height) => Some(GameInput::Resize(width, height)),
+                    Event::FocusLost => Some(GameInput::FocusLost),
                     Event::Key(KeyEvent { code, kind, .. }) => {
                         if kind != KeyEventKind::Press {
                             None
@@ -49,6 +51,9 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                                 KeyCode::Char('1') => Some(GameInput::MenuSelect(0)),
                                 KeyCode::Char('2') => Some(GameInput::MenuSelect(1)),
                                 KeyCode::Char('3') => Some(GameInput::MenuSelect(2)),
+                                KeyCode::Char('4') => Some(GameInput::MenuSelect(3)),
+                                KeyCode::Char('5') => Some(GameInput::MenuSelect(4)),
+                                KeyCode::Char('6') => Some(GameInput::MenuSelect(5)),
                                 KeyCode::Enter | KeyCode::Char('\n') => {
                                     Some(GameInput::MenuConfirm)
                                 }

@@ -173,6 +173,55 @@ impl Game {
                 std::time::Duration::from_millis(60),
                 std::time::Duration::from_millis(120),
             ), // Faster
+            Difficulty::Extreme => (
+                std::time::Duration::from_millis(35),
+                std::time::Duration::from_millis(70),
+            ), // Fastest
+        }
+    }
+
+    fn speed_effect_duration_ticks(&self) -> u32 {
+        match self.difficulty {
+            Difficulty::Easy => 120,
+            Difficulty::Medium => 100,
+            Difficulty::Hard => 85,
+            Difficulty::Extreme => 70,
+        }
+    }
+
+    fn power_up_refresh_spawn_chance(&self) -> f32 {
+        match self.difficulty {
+            Difficulty::Easy => 0.35,
+            Difficulty::Medium => 0.30,
+            Difficulty::Hard => 0.24,
+            Difficulty::Extreme => 0.16,
+        }
+    }
+
+    fn power_up_tick_spawn_chance(&self) -> f32 {
+        match self.difficulty {
+            Difficulty::Easy => 0.025,
+            Difficulty::Medium => 0.020,
+            Difficulty::Hard => 0.015,
+            Difficulty::Extreme => 0.010,
+        }
+    }
+
+    fn progression_step_percent(&self) -> u64 {
+        match self.difficulty {
+            Difficulty::Easy => 2,
+            Difficulty::Medium => 3,
+            Difficulty::Hard => 4,
+            Difficulty::Extreme => 5,
+        }
+    }
+
+    fn progression_max_steps(&self) -> u64 {
+        match self.difficulty {
+            Difficulty::Easy => 12,
+            Difficulty::Medium => 15,
+            Difficulty::Hard => 12,
+            Difficulty::Extreme => 13,
         }
     }
 
@@ -191,13 +240,13 @@ impl Game {
         match power_up_type {
             PowerUpType::SpeedBoost => {
                 // Temporarily increase snake speed (handled in main loop)
-                self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.power_up_timer = Some(self.speed_effect_duration_ticks());
                 self.active_speed_effect = Some(PowerUpType::SpeedBoost);
                 self.play_sound(); // Play sound when collecting power-up
             }
             PowerUpType::SlowDown => {
                 // Temporarily decrease snake speed
-                self.power_up_timer = Some(100); // Effect lasts for 100 ticks
+                self.power_up_timer = Some(self.speed_effect_duration_ticks());
                 self.active_speed_effect = Some(PowerUpType::SlowDown);
                 self.play_sound(); // Play sound when collecting power-up
             }
@@ -249,17 +298,10 @@ impl Game {
     }
 
     pub fn difficulty_speed_multiplier_percent(&self) -> u64 {
-        // Speeds up 3% every 50 points, capped at 45% faster.
-        let steps = (self.score / 50).min(15) as u64;
-        100u64.saturating_sub(steps * 3)
-    }
-
-    pub fn active_speed_effect_label(&self) -> Option<&'static str> {
-        match (self.power_up_timer, self.active_speed_effect) {
-            (Some(_), Some(PowerUpType::SpeedBoost)) => Some("Speed Boost"),
-            (Some(_), Some(PowerUpType::SlowDown)) => Some("Slow Down"),
-            _ => None,
-        }
+        // Difficulty-specific pace scaling: harder modes accelerate faster and cap lower.
+        let steps = (self.score / 50).min(self.progression_max_steps() as u32) as u64;
+        let reduction = steps * self.progression_step_percent();
+        100u64.saturating_sub(reduction)
     }
 
     pub fn speed_effect_ticks_left(&self) -> u32 {
@@ -276,29 +318,98 @@ impl Game {
         self.dirty_positions.insert(pos);
     }
 
-    pub fn generate_food(&mut self) {
-        let mut rng = rand::thread_rng();
+    fn interior_cells(&self) -> usize {
+        self.width.saturating_sub(2) as usize * self.height.saturating_sub(2) as usize
+    }
 
-        loop {
-            let new_food = Position {
+    fn find_food_spawn_position(&self, rng: &mut rand::rngs::ThreadRng) -> Option<Position> {
+        let total_cells = self.interior_cells();
+        if total_cells == 0 {
+            return None;
+        }
+
+        let blocked_cells = self.snake.body.len() + usize::from(self.power_up.is_some());
+        if blocked_cells >= total_cells {
+            return None;
+        }
+
+        let max_attempts = total_cells.saturating_mul(2).max(16);
+        for _ in 0..max_attempts {
+            let candidate = Position {
                 x: rng.gen_range(2..self.width),
                 y: rng.gen_range(2..self.height),
             };
-
-            // Make sure food doesn't appear on snake or on top of a power-up.
-            let food_overlaps_power_up = self
+            let overlaps_power_up = self
                 .power_up
-                .map(|power_up| power_up.position == new_food)
+                .map(|power_up| power_up.position == candidate)
                 .unwrap_or(false);
-            if !self.snake.overlaps_with(new_food) && !food_overlaps_power_up {
-                // Mark old food position as dirty
-                self.mark_position_dirty(self.food);
-                self.food = new_food;
-                // Mark new food position as dirty
-                self.mark_position_dirty(self.food);
-                break;
+            if !self.snake.overlaps_with(candidate) && !overlaps_power_up {
+                return Some(candidate);
             }
         }
+
+        for y in 2..self.height {
+            for x in 2..self.width {
+                let candidate = Position { x, y };
+                let overlaps_power_up = self
+                    .power_up
+                    .map(|power_up| power_up.position == candidate)
+                    .unwrap_or(false);
+                if !self.snake.overlaps_with(candidate) && !overlaps_power_up {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        None
+    }
+
+    fn find_power_up_spawn_position(&self, rng: &mut rand::rngs::ThreadRng) -> Option<Position> {
+        let total_cells = self.interior_cells();
+        if total_cells == 0 {
+            return None;
+        }
+
+        // Power-ups cannot overlap snake or food.
+        let blocked_cells = self.snake.body.len().saturating_add(1);
+        if blocked_cells >= total_cells {
+            return None;
+        }
+
+        let max_attempts = total_cells.saturating_mul(2).max(16);
+        for _ in 0..max_attempts {
+            let candidate = Position {
+                x: rng.gen_range(2..self.width),
+                y: rng.gen_range(2..self.height),
+            };
+            if !self.snake.overlaps_with(candidate) && candidate != self.food {
+                return Some(candidate);
+            }
+        }
+
+        for y in 2..self.height {
+            for x in 2..self.width {
+                let candidate = Position { x, y };
+                if !self.snake.overlaps_with(candidate) && candidate != self.food {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn generate_food(&mut self) {
+        let mut rng = rand::thread_rng();
+        let Some(new_food) = self.find_food_spawn_position(&mut rng) else {
+            return;
+        };
+
+        // Mark old food position as dirty
+        self.mark_position_dirty(self.food);
+        self.food = new_food;
+        // Mark new food position as dirty
+        self.mark_position_dirty(self.food);
     }
 
     pub fn generate_power_up(&mut self) {
@@ -308,42 +419,29 @@ impl Game {
 
         let mut rng = rand::thread_rng();
 
-        // Random chance to spawn a power-up (lower probability than food)
-        if rng.gen::<f32>() < 0.3 {
-            // 30% chance to spawn a power-up
-            loop {
-                let new_power_up_pos = Position {
-                    x: rng.gen_range(2..self.width),
-                    y: rng.gen_range(2..self.height),
-                };
+        // Difficulty-specific chance to spawn a replacement/initial power-up.
+        if rng.gen::<f32>() < self.power_up_refresh_spawn_chance() {
+            let Some(new_power_up_pos) = self.find_power_up_spawn_position(&mut rng) else {
+                return;
+            };
 
-                // Make sure power-up doesn't appear on snake or food
-                if !self.snake.overlaps_with(new_power_up_pos) && new_power_up_pos != self.food {
-                    let power_up_types = [
-                        PowerUpType::SpeedBoost,
-                        PowerUpType::SlowDown,
-                        PowerUpType::ExtraPoints,
-                        PowerUpType::Grow,
-                        PowerUpType::Shrink,
-                    ];
-                    let power_up_type = power_up_types[rng.gen_range(0..power_up_types.len())];
+            let power_up_types = [
+                PowerUpType::SpeedBoost,
+                PowerUpType::SlowDown,
+                PowerUpType::ExtraPoints,
+                PowerUpType::Grow,
+                PowerUpType::Shrink,
+            ];
+            let power_up_type = power_up_types[rng.gen_range(0..power_up_types.len())];
 
-                    // Mark old power-up position as dirty if it existed
-                    if let Some(old_power_up) = self.power_up {
-                        self.mark_position_dirty(old_power_up.position);
-                    }
+            self.power_up = Some(PowerUp {
+                position: new_power_up_pos,
+                power_up_type,
+                active: true,
+            });
 
-                    self.power_up = Some(PowerUp {
-                        position: new_power_up_pos,
-                        power_up_type,
-                        active: true,
-                    });
-
-                    // Mark new power-up position as dirty
-                    self.mark_position_dirty(new_power_up_pos);
-                    break;
-                }
-            }
+            // Mark new power-up position as dirty
+            self.mark_position_dirty(new_power_up_pos);
         }
     }
 
@@ -386,8 +484,7 @@ impl Game {
 
         // Random chance to generate a new power-up occasionally
         let mut rng = rand::thread_rng();
-        if self.power_up.is_none() && rng.gen::<f32>() < 0.02 {
-            // 2% chance each tick
+        if self.power_up.is_none() && rng.gen::<f32>() < self.power_up_tick_spawn_chance() {
             self.generate_power_up();
         }
 
@@ -570,5 +667,109 @@ mod tests {
 
         game.score = 1_000;
         assert_eq!(game.difficulty_speed_multiplier_percent(), 55);
+    }
+
+    #[test]
+    fn difficulty_tick_rates_get_faster_by_level() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        let (easy_h, easy_v) = easy.get_tick_rates();
+        let (med_h, med_v) = medium.get_tick_rates();
+        let (hard_h, hard_v) = hard.get_tick_rates();
+        let (ext_h, ext_v) = extreme.get_tick_rates();
+
+        assert!(easy_h > med_h && med_h > hard_h && hard_h > ext_h);
+        assert!(easy_v > med_v && med_v > hard_v && hard_v > ext_v);
+    }
+
+    #[test]
+    fn power_up_spawn_chances_reduce_with_harder_difficulties() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        assert!(
+            easy.power_up_refresh_spawn_chance() > medium.power_up_refresh_spawn_chance()
+                && medium.power_up_refresh_spawn_chance() > hard.power_up_refresh_spawn_chance()
+                && hard.power_up_refresh_spawn_chance() > extreme.power_up_refresh_spawn_chance()
+        );
+        assert!(
+            easy.power_up_tick_spawn_chance() > medium.power_up_tick_spawn_chance()
+                && medium.power_up_tick_spawn_chance() > hard.power_up_tick_spawn_chance()
+                && hard.power_up_tick_spawn_chance() > extreme.power_up_tick_spawn_chance()
+        );
+    }
+
+    #[test]
+    fn speed_effect_duration_shortens_with_harder_difficulties() {
+        let easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        assert!(
+            easy.speed_effect_duration_ticks() > medium.speed_effect_duration_ticks()
+                && medium.speed_effect_duration_ticks() > hard.speed_effect_duration_ticks()
+                && hard.speed_effect_duration_ticks() > extreme.speed_effect_duration_ticks()
+        );
+    }
+
+    #[test]
+    fn progression_scaling_is_stricter_for_harder_difficulties() {
+        let mut easy = Game::new(Difficulty::Easy, 20, 12, 0);
+        let mut medium = Game::new(Difficulty::Medium, 20, 12, 0);
+        let mut hard = Game::new(Difficulty::Hard, 20, 12, 0);
+        let mut extreme = Game::new(Difficulty::Extreme, 20, 12, 0);
+
+        easy.score = 500;
+        medium.score = 500;
+        hard.score = 500;
+        extreme.score = 500;
+
+        assert_eq!(easy.difficulty_speed_multiplier_percent(), 80);
+        assert_eq!(medium.difficulty_speed_multiplier_percent(), 70);
+        assert_eq!(hard.difficulty_speed_multiplier_percent(), 60);
+        assert_eq!(extreme.difficulty_speed_multiplier_percent(), 50);
+
+        easy.score = 10_000;
+        medium.score = 10_000;
+        hard.score = 10_000;
+        extreme.score = 10_000;
+
+        assert_eq!(easy.difficulty_speed_multiplier_percent(), 76);
+        assert_eq!(medium.difficulty_speed_multiplier_percent(), 55);
+        assert_eq!(hard.difficulty_speed_multiplier_percent(), 52);
+        assert_eq!(extreme.difficulty_speed_multiplier_percent(), 35);
+    }
+
+    #[test]
+    fn find_food_spawn_position_returns_none_when_board_is_full() {
+        let mut game = Game::new(Difficulty::Medium, 6, 6, 0);
+        game.power_up = None;
+        game.snake.body = (2..6)
+            .flat_map(|y| (2..6).map(move |x| Position { x, y }))
+            .collect();
+
+        let mut rng = rand::thread_rng();
+        assert!(game.find_food_spawn_position(&mut rng).is_none());
+    }
+
+    #[test]
+    fn find_power_up_spawn_position_returns_none_when_only_food_cell_is_free() {
+        let mut game = Game::new(Difficulty::Medium, 6, 6, 0);
+        game.food = Position { x: 2, y: 2 };
+        game.power_up = None;
+        let food = game.food;
+        game.snake.body = (2..6)
+            .flat_map(|y| (2..6).map(move |x| Position { x, y }))
+            .filter(|pos| *pos != food)
+            .collect();
+
+        let mut rng = rand::thread_rng();
+        assert!(game.find_power_up_spawn_position(&mut rng).is_none());
     }
 }
