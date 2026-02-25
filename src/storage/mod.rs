@@ -58,21 +58,30 @@ struct ConfigFileV1 {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+<<<<<<< HEAD
 #[serde(default)]
 pub struct Settings {
     pub language: Language,
     pub pause_on_focus_loss: bool,
     pub sound_on: bool,
     pub default_difficulty: Difficulty,
+=======
+pub struct Settings {
+    #[serde(default)]
+    pub language: Language,
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
             language: Language::En,
+<<<<<<< HEAD
             pause_on_focus_loss: true,
             sound_on: true,
             default_difficulty: Difficulty::Medium,
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         }
     }
 }
@@ -205,9 +214,12 @@ language = "en"
         assert_eq!(config.high_scores.hard, 30);
         assert_eq!(config.high_scores.extreme, 0);
         assert_eq!(config.settings.language, Language::En);
+<<<<<<< HEAD
         assert!(config.settings.pause_on_focus_loss);
         assert!(config.settings.sound_on);
         assert_eq!(config.settings.default_difficulty, Difficulty::Medium);
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         assert!(migrated);
     }
 
@@ -248,9 +260,12 @@ language = "pt"
         assert_eq!(config.high_scores.hard, 9);
         assert_eq!(config.high_scores.extreme, 10);
         assert_eq!(config.settings.language, Language::Pt);
+<<<<<<< HEAD
         assert!(config.settings.pause_on_focus_loss);
         assert!(config.settings.sound_on);
         assert_eq!(config.settings.default_difficulty, Difficulty::Medium);
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         assert!(!migrated);
     }
 
@@ -265,9 +280,12 @@ language = "pt"
             },
             settings: Settings {
                 language: Language::Ja,
+<<<<<<< HEAD
                 pause_on_focus_loss: false,
                 sound_on: true,
                 default_difficulty: Difficulty::Extreme,
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
             },
         };
         let serialized = toml::to_string(&ConfigFileV1 {
@@ -280,9 +298,12 @@ language = "pt"
         assert!(serialized.contains("config_version = 1"));
         assert!(serialized.contains("extreme = 4"));
         assert!(serialized.contains("language = \"ja\""));
+<<<<<<< HEAD
         assert!(serialized.contains("pause_on_focus_loss = false"));
         assert!(serialized.contains("sound_on = true"));
         assert!(serialized.contains("default_difficulty = \"extreme\""));
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     }
 
     #[test]
@@ -305,9 +326,12 @@ language = "es"
         assert_eq!(loaded.high_scores.hard, 33);
         assert_eq!(loaded.high_scores.extreme, 0);
         assert_eq!(loaded.settings.language, Language::Es);
+<<<<<<< HEAD
         assert!(loaded.settings.pause_on_focus_loss);
         assert!(loaded.settings.sound_on);
         assert_eq!(loaded.settings.default_difficulty, Difficulty::Medium);
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
         let rewritten = fs::read_to_string(&path).unwrap();
         assert!(rewritten.contains("config_version = 1"));

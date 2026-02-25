@@ -421,9 +421,17 @@ impl Game {
 
         // Difficulty-specific chance to spawn a replacement/initial power-up.
         if rng.gen::<f32>() < self.power_up_refresh_spawn_chance() {
+<<<<<<< HEAD
             let Some(new_power_up_pos) = self.find_power_up_spawn_position(&mut rng) else {
                 return;
             };
+=======
+            loop {
+                let new_power_up_pos = Position {
+                    x: rng.gen_range(2..self.width),
+                    y: rng.gen_range(2..self.height),
+                };
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
             let power_up_types = [
                 PowerUpType::SpeedBoost,
@@ -745,6 +753,7 @@ mod tests {
         assert_eq!(hard.difficulty_speed_multiplier_percent(), 52);
         assert_eq!(extreme.difficulty_speed_multiplier_percent(), 35);
     }
+<<<<<<< HEAD
 
     #[test]
     fn find_food_spawn_position_returns_none_when_board_is_full() {
@@ -772,4 +781,6 @@ mod tests {
         let mut rng = rand::thread_rng();
         assert!(game.find_power_up_spawn_position(&mut rng).is_none());
     }
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 }

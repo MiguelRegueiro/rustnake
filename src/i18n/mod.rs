@@ -1,11 +1,14 @@
 //! Translation helpers for all user-facing text.
 
 use crate::utils::{Difficulty, Language, PowerUpType};
+<<<<<<< HEAD
 use unicode_width::UnicodeWidthStr;
 
 fn text_width(text: &str) -> u16 {
     UnicodeWidthStr::width(text) as u16
 }
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
 pub fn controls_text(language: Language) -> &'static str {
     match language {
@@ -27,6 +30,7 @@ pub fn menu_title(language: Language) -> &'static str {
     }
 }
 
+<<<<<<< HEAD
 pub fn menu_play(language: Language) -> &'static str {
     match language {
         Language::En => "Play",
@@ -167,6 +171,8 @@ pub fn setting_off(language: Language) -> &'static str {
     }
 }
 
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 pub fn menu_navigation_hint(language: Language) -> &'static str {
     match language {
         Language::En => "Use ↑↓ arrows or WASD to navigate",
@@ -187,6 +193,19 @@ pub fn menu_confirm_hint(language: Language) -> &'static str {
     }
 }
 
+<<<<<<< HEAD
+=======
+pub fn menu_language_hint(language: Language) -> &'static str {
+    match language {
+        Language::En => "Press L to change language",
+        Language::Es => "Pulsa L para cambiar idioma",
+        Language::Ja => "Lキーで言語を変更",
+        Language::Pt => "Pressione L para mudar idioma",
+        Language::Zh => "按 L 切换语言",
+    }
+}
+
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 pub fn language_name(language: Language) -> &'static str {
     match language {
         Language::En => "English",
@@ -207,6 +226,19 @@ pub fn language_popup_title(language: Language) -> &'static str {
     }
 }
 
+<<<<<<< HEAD
+=======
+pub fn language_popup_hint(language: Language) -> &'static str {
+    match language {
+        Language::En => "↑↓ or 1-5, ENTER apply, L cancel",
+        Language::Es => "↑↓ o 1-5, ENTER aplica, L cancela",
+        Language::Ja => "↑↓ または 1-5、ENTER 決定、L 戻る",
+        Language::Pt => "↑↓ ou 1-5, ENTER aplica, L cancela",
+        Language::Zh => "↑↓ 或 1-5，ENTER 确认，L 返回",
+    }
+}
+
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 pub fn language_label(language: Language) -> &'static str {
     match language {
         Language::En => "Language",
@@ -398,6 +430,7 @@ pub fn game_over_quit_hint(language: Language) -> &'static str {
     }
 }
 
+<<<<<<< HEAD
 pub fn minimum_ui_width(language: Language) -> u16 {
     let option_overhead = 2u16; // selector marker + space
     let max_difficulty = difficulty_label(language, Difficulty::Extreme);
@@ -472,6 +505,8 @@ pub fn minimum_ui_width(language: Language) -> u16 {
     max_width
 }
 
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -479,6 +514,7 @@ mod tests {
     fn assert_non_empty_required_keys(language: Language) {
         assert!(!controls_text(language).is_empty());
         assert!(!menu_title(language).is_empty());
+<<<<<<< HEAD
         assert!(!menu_play(language).is_empty());
         assert!(!menu_difficulty(language).is_empty());
         assert!(!menu_settings(language).is_empty());
@@ -498,6 +534,15 @@ mod tests {
         assert!(!setting_off(language).is_empty());
         assert!(!confirm_yes(language).is_empty());
         assert!(!confirm_no(language).is_empty());
+=======
+        assert!(!menu_navigation_hint(language).is_empty());
+        assert!(!menu_confirm_hint(language).is_empty());
+        assert!(!menu_language_hint(language).is_empty());
+        assert!(!language_name(language).is_empty());
+        assert!(!language_popup_title(language).is_empty());
+        assert!(!language_popup_hint(language).is_empty());
+        assert!(!language_label(language).is_empty());
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         assert!(!small_window_title(language).is_empty());
         assert!(!small_window_current_label(language).is_empty());
         assert!(!small_window_minimum_label(language).is_empty());

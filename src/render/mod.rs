@@ -4,7 +4,11 @@
 use crate::core::Game;
 use crate::i18n;
 use crate::layout::{Layout, SizeCheck};
+<<<<<<< HEAD
 use crate::utils::Language;
+=======
+use crate::utils::{Difficulty, Language};
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 use std::io::Write;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -64,12 +68,111 @@ fn draw_centered_line(y: u16, term_width: u16, text: &str) {
 }
 
 fn draw_box_line(y: u16, x: u16, inner_width: u16, text: &str) {
+<<<<<<< HEAD
     print!("\x1b[{};{}H│{}│", y, x, " ".repeat(inner_width as usize));
+=======
+    print!("\x1b[{};{}H║{}║", y, x, " ".repeat(inner_width as usize));
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     let clipped = clip_by_display_width(text, inner_width);
     let text_x = x + 1 + (inner_width.saturating_sub(display_width(&clipped)) / 2);
     print_clipped(y, text_x, &clipped, inner_width);
 }
 
+<<<<<<< HEAD
+=======
+fn clear_rect(start_y: u16, start_x: u16, width: u16, height: u16) {
+    if width == 0 || height == 0 {
+        return;
+    }
+    let blank = " ".repeat(width as usize);
+    for row in 0..height {
+        print!("\x1b[{};{}H{}", start_y + row, start_x, blank);
+    }
+}
+
+fn draw_language_popup(
+    term_width: u16,
+    term_height: u16,
+    ui_language: Language,
+    selected: Language,
+) {
+    let title = i18n::language_popup_title(ui_language);
+    let hint = i18n::language_popup_hint(ui_language);
+    let options = Language::ALL;
+    let option_labels: Vec<String> = options
+        .iter()
+        .enumerate()
+        .map(|(i, option_language)| format!("{}. {}", i + 1, i18n::language_name(*option_language)))
+        .collect();
+    let option_label_width = option_labels
+        .iter()
+        .map(|line| display_width(line))
+        .max()
+        .unwrap_or(0);
+    let option_line_width = option_label_width + 2; // marker + space + label
+
+    let mut inner_width = display_width(title).max(display_width(hint));
+    for line in &option_labels {
+        inner_width = inner_width.max(display_width(line) + 2);
+    }
+    inner_width = inner_width
+        .max(display_width(hint).saturating_add(8))
+        .max(44);
+
+    let box_width = inner_width + 2;
+    let box_height: u16 = options.len() as u16 + 9;
+    let box_start_x = center_start(term_width, box_width);
+    let box_start_y = center_start(term_height, box_height);
+    let panel_padding_x: u16 = 3;
+    let panel_padding_y: u16 = 1;
+    let panel_x = box_start_x.saturating_sub(panel_padding_x).max(1);
+    let panel_y = box_start_y.saturating_sub(panel_padding_y).max(1);
+    let panel_width =
+        (box_width + panel_padding_x * 2).min(term_width.saturating_sub(panel_x).saturating_add(1));
+    let panel_height = (box_height + panel_padding_y * 2)
+        .min(term_height.saturating_sub(panel_y).saturating_add(1));
+
+    clear_rect(panel_y, panel_x, panel_width, panel_height);
+
+    print!(
+        "\x1b[{};{}H╔{}╗",
+        box_start_y,
+        box_start_x,
+        "═".repeat(inner_width as usize)
+    );
+    draw_box_line(box_start_y + 1, box_start_x, inner_width, title);
+    draw_box_line(box_start_y + 2, box_start_x, inner_width, "");
+    for (i, option_language) in options.iter().enumerate() {
+        let marker = if *option_language == selected {
+            "▶"
+        } else {
+            " "
+        };
+        let padded_label = pad_to_display_width(&option_labels[i], option_label_width);
+        let option_line = format!("{} {}", marker, padded_label);
+        let centered_option_line = pad_to_display_width(&option_line, option_line_width);
+        draw_box_line(
+            box_start_y + 3 + i as u16,
+            box_start_x,
+            inner_width,
+            &centered_option_line,
+        );
+    }
+    let post_options_y = box_start_y + 3 + options.len() as u16;
+    draw_box_line(post_options_y, box_start_x, inner_width, "");
+    draw_box_line(post_options_y + 1, box_start_x, inner_width, "");
+    draw_box_line(post_options_y + 2, box_start_x, inner_width, hint);
+    draw_box_line(post_options_y + 3, box_start_x, inner_width, "");
+    draw_box_line(post_options_y + 4, box_start_x, inner_width, "");
+    print!(
+        "\x1b[{};{}H╚{}╝",
+        post_options_y + 5,
+        box_start_x,
+        "═".repeat(inner_width as usize)
+    );
+}
+
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 fn draw_border(layout: &Layout) {
     let inner_width = layout.map_width.saturating_sub(2) as usize;
     let top = format!("┌{}┐", "─".repeat(inner_width));
@@ -267,7 +370,11 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
             "\x1b[{};{}H┌{}┐",
             box_top_y,
             box_start_x,
+<<<<<<< HEAD
             "─".repeat(box_inner_width as usize)
+=======
+            "═".repeat(box_inner_width as usize)
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         );
         draw_box_line(
             box_top_y + 1,
@@ -293,7 +400,11 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
             "\x1b[{};{}H└{}┘",
             box_top_y + 6,
             box_start_x,
+<<<<<<< HEAD
             "─".repeat(box_inner_width as usize)
+=======
+            "═".repeat(box_inner_width as usize)
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         );
     }
 
@@ -302,12 +413,16 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
 }
 
 pub fn draw_menu(
+<<<<<<< HEAD
     title: &str,
     options: &[String],
+=======
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     selected_option: usize,
     term_width: u16,
     term_height: u16,
     language: Language,
+<<<<<<< HEAD
 ) {
     print!("\x1b[2J\x1b[H");
 
@@ -321,6 +436,25 @@ pub fn draw_menu(
     let menu_height = options.len() as u16 + 9;
     let menu_start_y = center_start(term_height, menu_height);
     let title_start_x = center_start(term_width, title_box_width);
+=======
+    language_popup_selection: Option<Language>,
+) {
+    let popup_active = language_popup_selection.is_some();
+
+    // Clear screen and draw menu
+    print!("\x1b[2J\x1b[H");
+
+    let title = i18n::menu_title(language);
+    let title_width = display_width(title);
+    let mut title_inner_width = title_width.max(22);
+    // Keep same parity so centered text does not drift one cell left/right.
+    if !(title_inner_width - title_width).is_multiple_of(2) {
+        title_inner_width += 1;
+    }
+    let title_box_width: u16 = title_inner_width + 2;
+    let title_start_x = center_start(term_width, title_box_width);
+    let menu_start_y = center_start(term_height, 15);
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
     print!(
         "\x1b[{};{}H┌{}┐",
@@ -343,6 +477,7 @@ pub fn draw_menu(
         "─".repeat((title_box_width - 2) as usize)
     );
 
+<<<<<<< HEAD
     let option_label_width = options
         .iter()
         .map(|option| display_width(option))
@@ -353,10 +488,41 @@ pub fn draw_menu(
     let options_start_x = center_start(term_width, option_line_width);
     for (i, option) in options.iter().enumerate() {
         let marker = if selected_option == i { ">" } else { " " };
+=======
+    // Menu options - fixed-width rows inside a centered block.
+    let difficulty_options = [
+        Difficulty::Easy,
+        Difficulty::Medium,
+        Difficulty::Hard,
+        Difficulty::Extreme,
+    ];
+    let difficulty_labels: Vec<String> = difficulty_options
+        .iter()
+        .enumerate()
+        .map(|(i, difficulty)| {
+            format!(
+                "{}. {}",
+                i + 1,
+                i18n::difficulty_label(language, *difficulty)
+            )
+        })
+        .collect();
+    let difficulty_label_width = difficulty_labels
+        .iter()
+        .map(|line| display_width(line))
+        .max()
+        .unwrap_or(0);
+    let difficulty_line_width = difficulty_label_width + 2; // marker + space + label
+    let difficulty_start_x = center_start(term_width, difficulty_line_width);
+
+    for (i, _) in difficulty_options.iter().enumerate() {
+        let marker = if selected_option == i { "▶" } else { " " };
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         let color = if selected_option == i {
             "\x1b[92m"
         } else {
             "\x1b[97m"
+<<<<<<< HEAD
         };
         let clipped_label = clip_by_display_width(option, option_label_width);
         let padded_label = pad_to_display_width(&clipped_label, option_label_width);
@@ -365,12 +531,50 @@ pub fn draw_menu(
         print!("\x1b[{};1H\x1b[K", row_y);
         print!("\x1b[{};{}H{}", row_y, options_start_x, color);
         print_clipped(row_y, options_start_x, &line, option_line_width);
+=======
+        }; // Green for selected, white for others
+        let padded_label = pad_to_display_width(&difficulty_labels[i], difficulty_label_width);
+        let full_line = format!("{} {}", marker, padded_label);
+        print!(
+            "\x1b[{};{}H{}{}",
+            menu_start_y + 4 + i as u16,
+            difficulty_start_x,
+            color,
+            full_line
+        );
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     }
     print!("\x1b[0m");
 
+<<<<<<< HEAD
     let info_y = menu_start_y + 5 + options.len() as u16;
     draw_centered_line(info_y, term_width, i18n::menu_navigation_hint(language));
     draw_centered_line(info_y + 1, term_width, i18n::menu_confirm_hint(language));
+=======
+    if !popup_active {
+        let language_line = format!("{}: {}", i18n::language_label(language), language.code());
+        draw_centered_line(menu_start_y + 8, term_width, &language_line);
+        draw_centered_line(
+            menu_start_y + 10,
+            term_width,
+            i18n::menu_navigation_hint(language),
+        );
+        draw_centered_line(
+            menu_start_y + 11,
+            term_width,
+            i18n::menu_confirm_hint(language),
+        );
+        draw_centered_line(
+            menu_start_y + 12,
+            term_width,
+            i18n::menu_language_hint(language),
+        );
+    }
+
+    if let Some(selected_language) = language_popup_selection {
+        draw_language_popup(term_width, term_height, language, selected_language);
+    }
+>>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
     let _ = std::io::stdout().flush();
 }
