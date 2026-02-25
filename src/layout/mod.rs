@@ -2,7 +2,6 @@
 
 use crate::{i18n, utils::Language};
 use crossterm::terminal;
-use unicode_width::UnicodeWidthStr;
 
 pub const HUD_BOTTOM_PADDING: u16 = 5;
 
@@ -60,12 +59,7 @@ pub fn terminal_size() -> (u16, u16) {
 }
 
 pub fn min_terminal_size(map_width: u16, map_height: u16, language: Language) -> MinSize {
-<<<<<<< HEAD
     let min_width = map_width.max(i18n::minimum_ui_width(language));
-=======
-    let controls_width = UnicodeWidthStr::width(i18n::controls_text(language)) as u16;
-    let min_width = map_width.max(controls_width);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     let min_height = map_height + HUD_BOTTOM_PADDING;
     MinSize {
         width: min_width,

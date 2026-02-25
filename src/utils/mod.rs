@@ -45,30 +45,6 @@ impl Language {
             Language::Zh => 4,
         }
     }
-<<<<<<< HEAD
-=======
-
-    pub fn from_index(index: usize) -> Self {
-        match index {
-            0 => Language::En,
-            1 => Language::Es,
-            2 => Language::Ja,
-            3 => Language::Pt,
-            4 => Language::Zh,
-            _ => Language::En,
-        }
-    }
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Language::En => "EN",
-            Language::Es => "ES",
-            Language::Ja => "JA",
-            Language::Pt => "PT",
-            Language::Zh => "ZH",
-        }
-    }
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

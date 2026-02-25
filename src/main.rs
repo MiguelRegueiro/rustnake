@@ -25,11 +25,7 @@ mod utils;
 
 use core::Game;
 use input::GameInput;
-<<<<<<< HEAD
 use storage::{HighScores, Settings};
-=======
-use storage::HighScores;
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 use utils::{Difficulty, Language};
 
 struct TerminalGuard;
@@ -42,22 +38,14 @@ impl Drop for TerminalGuard {
     }
 }
 
-<<<<<<< HEAD
 fn persist_config(high_scores: &HighScores, settings: Settings) {
     let config = storage::AppConfig {
         high_scores: *high_scores,
         settings,
-=======
-fn persist_config(high_scores: &HighScores, language: Language) {
-    let config = storage::AppConfig {
-        high_scores: *high_scores,
-        settings: storage::Settings { language },
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     };
     let _ = storage::save_config(&config);
 }
 
-<<<<<<< HEAD
 #[derive(Clone, Copy)]
 enum MenuScreen {
     Main,
@@ -102,26 +90,11 @@ fn show_menu(
 
     loop {
         let ui_language = settings.language;
-=======
-fn show_menu(
-    rx: &mpsc::Receiver<GameInput>,
-    term_size: &mut (u16, u16),
-    language: &mut Language,
-    high_scores: &HighScores,
-) -> Option<Difficulty> {
-    let mut selected_option = 0; // 0 = Easy, 1 = Medium, 2 = Hard, 3 = Extreme
-    let mut showing_language_popup = false;
-    let mut popup_language_index = language.to_index();
-    let max_language_index = Language::ALL.len().saturating_sub(1);
-
-    loop {
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
         let layout_check = layout::compute_layout(
             term_size.0,
             term_size.1,
             utils::WIDTH,
             utils::HEIGHT,
-<<<<<<< HEAD
             ui_language,
         );
         match layout_check {
@@ -224,71 +197,11 @@ fn show_menu(
                 MenuScreen::Language => Language::ALL.len(),
                 MenuScreen::ResetScoresConfirm => 1,
             };
-=======
-            *language,
-        );
-        match layout_check {
-            Ok(_) => {
-                let popup_selection = if showing_language_popup {
-                    Some(Language::from_index(popup_language_index))
-                } else {
-                    None
-                };
-                render::draw_menu(
-                    selected_option,
-                    term_size.0,
-                    term_size.1,
-                    *language,
-                    popup_selection,
-                );
-            }
-            Err(size_check) => render::draw_size_warning(size_check, *language),
-        }
-
-        if let Ok(input_cmd) = rx.recv() {
-            if showing_language_popup {
-                match input_cmd {
-                    GameInput::Resize(width, height) => {
-                        *term_size = (width, height);
-                    }
-                    GameInput::Direction(utils::Direction::Up) => {
-                        popup_language_index = popup_language_index.saturating_sub(1);
-                    }
-                    GameInput::Direction(utils::Direction::Down) => {
-                        popup_language_index = (popup_language_index + 1).min(max_language_index);
-                    }
-                    GameInput::MenuSelect(option) => {
-                        popup_language_index = option.min(max_language_index);
-                    }
-                    GameInput::MenuConfirm => {
-                        *language = Language::from_index(popup_language_index);
-                        persist_config(high_scores, *language);
-                        showing_language_popup = false;
-                    }
-                    GameInput::CycleLanguage => {
-                        showing_language_popup = false;
-                    }
-                    GameInput::Quit => {
-                        return None;
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
             match input_cmd {
                 GameInput::Resize(width, height) => {
                     *term_size = (width, height);
                 }
-                GameInput::CycleLanguage => {
-                    if layout_check.is_ok() {
-                        showing_language_popup = true;
-                        popup_language_index = language.to_index();
-                    }
-                }
                 GameInput::MenuSelect(option) => {
-<<<<<<< HEAD
                     let selection = option.min(max_index);
                     match screen {
                         MenuScreen::Main => main_selected = selection,
@@ -302,29 +215,6 @@ fn show_menu(
                     MenuScreen::Main => main_selected = main_selected.saturating_sub(1),
                     MenuScreen::Difficulty => {
                         difficulty_selected = difficulty_selected.saturating_sub(1)
-=======
-                    if option <= 3 {
-                        selected_option = option;
-                    }
-                }
-                GameInput::Direction(utils::Direction::Up) => {
-                    selected_option = selected_option.saturating_sub(1);
-                }
-                GameInput::Direction(utils::Direction::Down) => {
-                    if selected_option < 3 {
-                        selected_option += 1;
-                    }
-                }
-                GameInput::MenuConfirm => {
-                    if layout_check.is_ok() {
-                        return Some(match selected_option {
-                            0 => Difficulty::Easy,
-                            1 => Difficulty::Medium,
-                            2 => Difficulty::Hard,
-                            3 => Difficulty::Extreme,
-                            _ => Difficulty::Medium, // fallback
-                        });
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
                     }
                     MenuScreen::Settings => settings_selected = settings_selected.saturating_sub(1),
                     MenuScreen::Language => language_selected = language_selected.saturating_sub(1),
@@ -431,18 +321,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rx = input::setup_input_handler();
     let config = storage::load_config();
     let mut high_scores: HighScores = config.high_scores;
-<<<<<<< HEAD
     let mut settings: Settings = config.settings;
     let mut selected_difficulty = settings.default_difficulty;
-=======
-    let mut language: Language = config.settings.language;
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     let mut term_size = layout::terminal_size();
 
     // Main game loop with restart capability
     'game_loop: loop {
         // Show difficulty selection menu
-<<<<<<< HEAD
         let Some(difficulty) = show_menu(
             &rx,
             &mut term_size,
@@ -450,9 +335,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mut selected_difficulty,
             &mut high_scores,
         ) else {
-=======
-        let Some(difficulty) = show_menu(&rx, &mut term_size, &mut language, &high_scores) else {
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
             break;
         };
 
@@ -522,19 +404,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     term_size.1,
                     game.width,
                     game.height,
-<<<<<<< HEAD
                     settings.language,
                 ) {
                     Ok(layout) => layout,
                     Err(size_check) => {
                         render::draw_size_warning(size_check, settings.language);
-=======
-                    language,
-                ) {
-                    Ok(layout) => layout,
-                    Err(size_check) => {
-                        render::draw_size_warning(size_check, language);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
                         active_layout = None;
                         thread::sleep(Duration::from_millis(25));
                         continue;
@@ -573,21 +447,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     game.tick();
                     if game.high_score > high_scores.get(difficulty) {
                         high_scores.set(difficulty, game.high_score);
-<<<<<<< HEAD
                         persist_config(&high_scores, settings);
-=======
-                        persist_config(&high_scores, language);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
                     }
                     last_tick = Instant::now();
                 }
 
                 // Draw everything
-<<<<<<< HEAD
                 render::draw(&mut game, &layout, settings.language);
-=======
-                render::draw(&mut game, &layout, language);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
             } else {
                 while let Ok(input_cmd) = rx.try_recv() {
                     match input_cmd {
@@ -610,19 +476,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     term_size.1,
                     game.width,
                     game.height,
-<<<<<<< HEAD
                     settings.language,
                 ) {
                     Ok(layout) => layout,
                     Err(size_check) => {
                         render::draw_size_warning(size_check, settings.language);
-=======
-                    language,
-                ) {
-                    Ok(layout) => layout,
-                    Err(size_check) => {
-                        render::draw_size_warning(size_check, language);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
                         active_layout = None;
                         thread::sleep(Duration::from_millis(25));
                         continue;
@@ -632,11 +490,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     render::draw_static_frame(&layout);
                     active_layout = Some(layout);
                 }
-<<<<<<< HEAD
                 render::draw(&mut game, &layout, settings.language);
-=======
-                render::draw(&mut game, &layout, language);
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
             }
 
             // Check for game over and handle input differently

@@ -13,11 +13,7 @@ pub enum GameInput {
     MenuSelect(usize),
     MenuConfirm,
     ToggleMute,
-<<<<<<< HEAD
     FocusLost,
-=======
-    CycleLanguage,
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
     Resize(u16, u16),
 }
 
@@ -40,9 +36,6 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                                 KeyCode::Char('m') | KeyCode::Char('M') => {
                                     Some(GameInput::ToggleMute)
                                 }
-                                KeyCode::Char('l') | KeyCode::Char('L') => {
-                                    Some(GameInput::CycleLanguage)
-                                }
                                 KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Up => {
                                     Some(GameInput::Direction(crate::utils::Direction::Up))
                                 }
@@ -60,10 +53,7 @@ pub fn setup_input_handler() -> mpsc::Receiver<GameInput> {
                                 KeyCode::Char('3') => Some(GameInput::MenuSelect(2)),
                                 KeyCode::Char('4') => Some(GameInput::MenuSelect(3)),
                                 KeyCode::Char('5') => Some(GameInput::MenuSelect(4)),
-<<<<<<< HEAD
                                 KeyCode::Char('6') => Some(GameInput::MenuSelect(5)),
-=======
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
                                 KeyCode::Enter | KeyCode::Char('\n') => {
                                     Some(GameInput::MenuConfirm)
                                 }

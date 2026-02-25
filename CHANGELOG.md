@@ -4,7 +4,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows semantic versioning in spirit for game updates.
 
-<<<<<<< HEAD
 ## [Unreleased]
 
 ### Added
@@ -16,15 +15,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ### Fixed
 - No changes yet.
 
-=======
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 ## [1.2.0] - 2026-02-24
 
 ### Added
 - Full localization layer (`src/i18n/`) and language-aware rendering for all user-facing in-game/menu text.
 - New language support: Spanish (`es`), Japanese (`ja`), Portuguese (`pt`), and Simplified Chinese (`zh`) in addition to English.
 - Persistent language setting in `~/.rustnake.toml` (`[settings].language`) with immediate save on apply.
-<<<<<<< HEAD
 - New menu architecture:
   - Main menu with `Play`, `Difficulty`, `Settings`, `Quit`
   - Dedicated `Difficulty` submenu
@@ -39,13 +35,6 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - High-score schema extension to include `extreme` in `~/.rustnake.toml`.
 - Config schema versioning with `config_version` in `~/.rustnake.toml`.
 - Future roadmap file with planned improvements: `futureupgrades.md`.
-=======
-- Language-selection popup in difficulty menu (`L`) with list-based selection and confirmation flow.
-- New `Extreme` difficulty mode with its own tick rates and independent high score.
-- High-score schema extension to include `extreme` in `~/.rustnake.toml`.
-- Config schema versioning with `config_version` in `~/.rustnake.toml`.
-- Future roadmap file with planned improvements: `futereupgrades.md`.
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 - GitHub Actions CI workflow (`.github/workflows/ci.yml`) that runs `fmt`, `check`, `clippy`, and `test` on PRs and main branch pushes.
 - Storage migration tests for backward compatibility:
   - old `high_scores` files without `extreme`
@@ -59,12 +48,9 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - per-difficulty progression curve/cap behavior
 
 ### Changed
-<<<<<<< HEAD
 - `Play` now starts immediately using the currently selected difficulty.
 - Difficulty selection now shows and updates the currently selected difficulty from a dedicated submenu.
 - Focus-loss behavior now supports automatic pause via terminal focus events when enabled in settings.
-=======
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 - Menu now includes 4 difficulty levels: `Easy`, `Medium`, `Hard`, `Extreme`.
 - `Extreme` is faster than `Hard` (35ms horizontal / 70ms vertical base ticks).
 - Difficulty labels are localized across all supported languages, including `Extreme`.
@@ -87,17 +73,11 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Spanish and Portuguese mute wording was updated for more natural UI phrasing.
 
 ### Fixed
-<<<<<<< HEAD
 - Game-over menu box and text centering alignment.
 - Food/power-up spawning now bails out safely when no valid cells are available, avoiding full-board spawn loops.
 - Unicode display-width aware clipping/centering now prevents CJK misalignment in menu/HUD/game-over text.
 - Language popup hint/cancel text now fits and aligns correctly.
 - Language changes are now constrained to the settings-menu flow (no in-game accidental switching).
-=======
-- Unicode display-width aware clipping/centering now prevents CJK misalignment in menu/HUD/game-over text.
-- Language popup hint/cancel text now fits and aligns correctly.
-- Language changes are now constrained to the level-selection menu flow (no in-game accidental switching).
->>>>>>> 2bd0e7008ff5ee461cbaa0237a74463eda54a704
 
 ## [1.1.0] - 2026-02-23
 
