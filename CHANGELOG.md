@@ -13,7 +13,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - No changes yet.
 
 ### Fixed
-- No changes yet.
+- Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).
 
 ## [1.2.0] - 2026-02-24
 
