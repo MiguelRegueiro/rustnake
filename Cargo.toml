@@ -1,6 +1,6 @@
 [package]
 name = "rustnake"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 description = "Terminal Snake game in Rust with localization, multiple difficulties, and config migration support"
 license = "MIT"
