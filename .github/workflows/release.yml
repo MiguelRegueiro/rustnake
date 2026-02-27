@@ -203,7 +203,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
+          - macos-14
           - windows-latest
 
     steps:
@@ -233,12 +233,7 @@ jobs:
             source="target/release/rustnake.exe"
             asset_name="rustnake-windows-x86_64.exe"
           elif [[ "${RUNNER_OS}" == "macOS" ]]; then
-            arch="$(uname -m)"
-            if [[ "$arch" == "arm64" ]]; then
-              asset_name="rustnake-macos-arm64"
-            else
-              asset_name="rustnake-macos-x86_64"
-            fi
+            asset_name="rustnake-macos-arm64"
           fi
 
           if [[ ! -f "$source" ]]; then
