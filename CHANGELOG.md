@@ -24,6 +24,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - README rewritten for production-grade operational clarity (compatibility policy, locked build/test commands, and release operations guidance).
 - README install/run guidance now includes crates.io distribution (`cargo install rustnake --locked`) and crate badge visibility.
 - README further tightened to match current automation and support policy details (CI job split, crates.io distribution note, and tag-driven automated release flow).
+- Project description copy updated in crate metadata and README to reflect architecture and runtime characteristics more precisely.
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-Terminal Snake in Rust with deterministic game ticks, localization, config migration, and CI-verified quality gates.
+Production-grade terminal Snake in Rust with deterministic ticks, decoupled core/render architecture, non-blocking input, localization, and persistent settings.
 </p>
 
 <p align="center">
