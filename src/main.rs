@@ -5,7 +5,7 @@ use crossterm::{
     cursor::{Hide, Show},
     event::{DisableFocusChange, EnableFocusChange},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use std::{
     collections::VecDeque,

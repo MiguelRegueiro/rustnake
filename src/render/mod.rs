@@ -165,7 +165,7 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
     }
 
     // Draw food with different symbols based on score
-    let food_symbol = if game.score.is_multiple_of(50) && game.score != 0 {
+    let food_symbol = if game.score % 50 == 0 && game.score != 0 {
         "★"
     } else {
         "●"
@@ -314,7 +314,7 @@ pub fn draw_menu(
     let max_title_inner = term_width.saturating_sub(2).max(1);
     let title_width = display_width(title).min(max_title_inner);
     let mut title_inner_width = title_width.max(22).min(max_title_inner);
-    if !(title_inner_width - title_width).is_multiple_of(2) {
+    if (title_inner_width - title_width) % 2 != 0 {
         title_inner_width = (title_inner_width + 1).min(max_title_inner);
     }
     let title_box_width = title_inner_width + 2;

@@ -138,7 +138,7 @@ impl Game {
         };
         game.generate_food();
         game.generate_power_up(); // Generate initial power-up
-                                  // Initially mark all snake positions as dirty
+        // Initially mark all snake positions as dirty
         for pos in &game.snake.body {
             game.dirty_positions.insert(*pos);
         }
@@ -420,7 +420,7 @@ impl Game {
         let mut rng = rand::thread_rng();
 
         // Difficulty-specific chance to spawn a replacement/initial power-up.
-        if rng.gen::<f32>() < self.power_up_refresh_spawn_chance() {
+        if rng.r#gen::<f32>() < self.power_up_refresh_spawn_chance() {
             let Some(new_power_up_pos) = self.find_power_up_spawn_position(&mut rng) else {
                 return;
             };
@@ -484,7 +484,7 @@ impl Game {
 
         // Random chance to generate a new power-up occasionally
         let mut rng = rand::thread_rng();
-        if self.power_up.is_none() && rng.gen::<f32>() < self.power_up_tick_spawn_chance() {
+        if self.power_up.is_none() && rng.r#gen::<f32>() < self.power_up_tick_spawn_chance() {
             self.generate_power_up();
         }
 
