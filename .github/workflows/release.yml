@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Semver tag to release (e.g. v1.2.2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag '$tag' must match vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag exists in repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.meta.outputs.tag }}"
+          if ! git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag '$tag' does not exist in repository history" >&2
+            exit 1
+          fi
+
+      - name: Build release notes from changelog
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.meta.outputs.version }}"
+
+          awk -v version="$version" '
+            $0 ~ "^## \\[" version "\\]" {in_section=1; found=1; next}
+            in_section && $0 ~ "^## \\[" {exit}
+            in_section {print}
+            END {
+              if (!found) exit 2
+            }
+          ' CHANGELOG.md > release_notes.md || {
+            code="$?"
+            if [[ "$code" -eq 2 ]]; then
+              echo "No CHANGELOG.md section found for version $version" >&2
+            fi
+            exit "$code"
+          }
+
+          if [[ ! -s release_notes.md ]]; then
+            echo "Release notes section for $version is empty" >&2
+            exit 1
+          fi
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Rustnake ${{ steps.meta.outputs.tag }}
+          body_path: release_notes.md
+          generate_release_notes: true

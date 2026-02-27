@@ -7,13 +7,29 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
-- No changes yet.
+- GitHub Actions release workflow (`.github/workflows/release.yml`) that creates releases from semver tags (`vX.Y.Z`).
+- Automatic release note extraction from `CHANGELOG.md` for the tagged version, with hard validation that a matching changelog section exists.
 
 ### Changed
-- No changes yet.
+- CI workflow hardened for production use:
+  - explicit `contents: read` permissions
+  - deterministic `cargo fetch --locked` pre-step
+  - explicit job timeouts
+  - manual `workflow_dispatch` support
+  - split verification jobs for pinned toolchain and MSRV (`1.85.0`)
+- Rust project baseline modernized:
+  - Edition `2024`
+  - explicit `rust-version = "1.85"`
+  - pinned repository toolchain via `rust-toolchain.toml`
+- README rewritten for production-grade operational clarity (compatibility policy, locked build/test commands, and release operations guidance).
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).
+- Edition 2024 compatibility issue where `gen` became a reserved keyword; random calls updated accordingly.
+- Config persistence hardening:
+  - atomic config writes to reduce risk of partial/corrupted writes
+  - private Unix permissions (`0600`) for saved config files
+  - oversized config file guard (`64 KiB`) to avoid parsing unbounded local input
 
 ## [1.2.0] - 2026-02-24
 
