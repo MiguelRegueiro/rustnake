@@ -160,7 +160,7 @@ cargo test --all-targets --all-features --locked
 2. Update [`CHANGELOG.md`](CHANGELOG.md).
 3. Commit and push to `main`.
 4. Create and push a semver tag (`vX.Y.Z`).
-5. GitHub Actions release workflow publishes notes automatically from `CHANGELOG.md`.
+5. GitHub Actions release workflow validates the tag/changelog, publishes GitHub release notes from `CHANGELOG.md`, uploads platform binaries, and publishes to crates.io via Trusted Publisher.
 
 ## Troubleshooting
 

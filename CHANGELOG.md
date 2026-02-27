@@ -31,6 +31,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - CI coverage expanded to Linux, macOS, and Windows for pinned-toolchain verification.
 - Supply-chain policy added via `deny.toml` with automated `cargo deny` checks for advisories, licenses, bans, and sources.
 - Release workflow now builds and uploads platform binaries (Linux/macOS/Windows) to each tagged GitHub release.
+- Release workflow now performs end-to-end CD: tag/changelog/version validation, draft release staging, crates.io publish via Trusted Publisher (`release.yml` + `crates-io-publish`), and final release publication.
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).

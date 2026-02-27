@@ -20,12 +20,12 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    name: Prepare Release
+  meta:
+    name: Validate Tag and Changelog
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -68,9 +68,33 @@ jobs:
             echo "Tag '$tag' does not exist in repository history" >&2
             exit 1
           fi
-          git checkout "refs/tags/$tag"
 
-      - name: Build release notes from changelog
+      - name: Validate package version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_version="${{ steps.meta.outputs.version }}"
+          package_version="$(awk '
+            $0 ~ /^\[package\]/ { in_package=1; next }
+            in_package && $0 ~ /^\[/ { in_package=0 }
+            in_package && $0 ~ /^version = / {
+              gsub(/version = \"|\"/, "", $0)
+              print $0
+              exit
+            }
+          ' Cargo.toml)"
+
+          if [[ -z "$package_version" ]]; then
+            echo "Failed to read package version from Cargo.toml" >&2
+            exit 1
+          fi
+
+          if [[ "$package_version" != "$expected_version" ]]; then
+            echo "Tag version ($expected_version) does not match Cargo.toml version ($package_version)" >&2
+            exit 1
+          fi
+
+      - name: Validate changelog entry exists and is non-empty
         shell: bash
         run: |
           set -euo pipefail
@@ -96,24 +120,82 @@ jobs:
             exit 1
           fi
 
-      - name: Create or update GitHub release
+  verify_release:
+    name: Verify Release Build
+    needs: meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          ref: refs/tags/${{ needs.meta.outputs.tag }}
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.93.0 --profile minimal --component clippy
+          rustup default 1.93.0
+
+      - name: cargo fetch
+        run: cargo fetch --locked
+
+      - name: cargo check
+        run: cargo check --all-targets --all-features --locked
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: cargo test
+        run: cargo test --all-targets --all-features --locked
+
+  draft_release:
+    name: Create Draft GitHub Release
+    needs: [meta, verify_release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          ref: refs/tags/${{ needs.meta.outputs.tag }}
+
+      - name: Build release notes from changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.meta.outputs.version }}"
+
+          awk -v version="$version" '
+            $0 ~ "^## \\[" version "\\]" {in_section=1; found=1; next}
+            in_section && $0 ~ "^## \\[" {exit}
+            in_section {print}
+            END {
+              if (!found) exit 2
+            }
+          ' CHANGELOG.md > release_notes.md
+
+      - name: Create or update draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          tag="${{ steps.meta.outputs.tag }}"
+          tag="${{ needs.meta.outputs.tag }}"
           title="Rustnake $tag"
 
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release edit "$tag" --title "$title" --notes-file release_notes.md
           else
-            gh release create "$tag" --verify-tag --title "$title" --notes-file release_notes.md
+            gh release create "$tag" --verify-tag --title "$title" --notes-file release_notes.md --draft
           fi
 
   binaries:
     name: Build & Upload (${{ matrix.os }})
-    needs: prepare
+    needs: [meta, draft_release]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -128,7 +210,7 @@ jobs:
       - name: Checkout tag
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
         with:
-          ref: refs/tags/${{ needs.prepare.outputs.tag }}
+          ref: refs/tags/${{ needs.meta.outputs.tag }}
 
       - name: Install pinned Rust toolchain
         shell: bash
@@ -140,7 +222,7 @@ jobs:
       - name: Build release binary
         run: cargo build --release --locked
 
-      - name: Package asset
+      - name: Package asset and checksum
         id: package
         shell: bash
         run: |
@@ -163,17 +245,92 @@ jobs:
             echo "Missing build artifact: $source" >&2
             exit 1
           fi
+
           asset_path="$RUNNER_TEMP/$asset_name"
           cp "$source" "$asset_path"
+
+          checksum_path="$RUNNER_TEMP/$asset_name.sha256"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$asset_path" > "$checksum_path"
+          else
+            shasum -a 256 "$asset_path" > "$checksum_path"
+          fi
+
           echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
           echo "asset_path=$asset_path" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum_path" >> "$GITHUB_OUTPUT"
 
-      - name: Upload asset to release
+      - name: Upload asset and checksum to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release upload "${{ needs.prepare.outputs.tag }}" \
+          gh release upload "${{ needs.meta.outputs.tag }}" \
             "${{ steps.package.outputs.asset_path }}#${{ steps.package.outputs.asset_name }}" \
+            "${{ steps.package.outputs.checksum_path }}#${{ steps.package.outputs.asset_name }}.sha256" \
             --clobber
+
+  publish_crate:
+    name: Publish to crates.io
+    needs: [meta, verify_release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: crates-io-publish
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          ref: refs/tags/${{ needs.meta.outputs.tag }}
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup default 1.93.0
+
+      - name: cargo fetch
+        run: cargo fetch --locked
+
+      - name: cargo package
+        run: cargo package --locked
+
+      - name: Detect existing crates.io version
+        id: check_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.meta.outputs.version }}"
+          if curl -fsSL "https://crates.io/api/v1/crates/rustnake/${version}" >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish crate
+        if: steps.check_version.outputs.already_published == 'false'
+        run: cargo publish --locked
+
+      - name: Skip publish (already published)
+        if: steps.check_version.outputs.already_published == 'true'
+        run: echo "rustnake ${{ needs.meta.outputs.version }} already exists on crates.io; skipping publish"
+
+  publish_release:
+    name: Publish GitHub Release
+    needs: [meta, binaries, publish_crate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "${{ needs.meta.outputs.tag }}" --draft=false
