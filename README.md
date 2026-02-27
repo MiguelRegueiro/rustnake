@@ -16,20 +16,6 @@ Terminal Snake in Rust with deterministic game ticks, localization, config migra
   <img src="media/rustnakegameplay.webp" alt="Rustnake Gameplay" width="640">
 </p>
 
-## Table of Contents
-
-- [Status](#status)
-- [Compatibility](#compatibility)
-- [Install](#install)
-- [Run](#run)
-- [Gameplay](#gameplay)
-- [Configuration and Data](#configuration-and-data)
-- [Development](#development)
-- [Release Operations](#release-operations)
-- [Troubleshooting](#troubleshooting)
-- [Changelog](#changelog)
-- [License](#license)
-
 ## Status
 
 - Project maturity: stable CLI game.
