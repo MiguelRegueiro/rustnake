@@ -2,6 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Latest Version" src="https://img.shields.io/github/v/tag/MiguelRegueiro/rustnake?sort=semver"></a>
+  <a href="https://crates.io/crates/rustnake"><img alt="Crates.io" src="https://img.shields.io/crates/v/rustnake.svg"></a>
   <a href="https://github.com/MiguelRegueiro/rustnake/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/MiguelRegueiro/rustnake/ci.yml?branch=main"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/MiguelRegueiro/rustnake"></a>
   <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-orange"></a>
@@ -45,14 +46,26 @@ Terminal Snake in Rust with deterministic game ticks, localization, config migra
 
 ## Install
 
-### Option 1: Download latest release binary (Linux x86_64)
+### Option 1: Install from crates.io (recommended)
+
+```bash
+cargo install rustnake --locked
+```
+
+Update to the latest published crate version:
+
+```bash
+cargo install rustnake --locked --force
+```
+
+### Option 2: Download latest release binary (Linux x86_64)
 
 ```bash
 curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -o rustnake
 chmod +x rustnake
 ```
 
-### Option 2: Build from source
+### Option 3: Build from source
 
 ```bash
 git clone https://github.com/MiguelRegueiro/rustnake.git
@@ -63,6 +76,14 @@ cargo build --release --locked
 `--locked` ensures dependency resolution matches `Cargo.lock` exactly.
 
 ## Run
+
+From a crates.io install:
+
+```bash
+rustnake
+```
+
+From a downloaded release binary:
 
 ```bash
 ./rustnake

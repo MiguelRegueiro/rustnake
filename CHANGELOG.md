@@ -22,6 +22,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - explicit `rust-version = "1.85"`
   - pinned repository toolchain via `rust-toolchain.toml`
 - README rewritten for production-grade operational clarity (compatibility policy, locked build/test commands, and release operations guidance).
+- README install/run guidance now includes crates.io distribution (`cargo install rustnake --locked`) and crate badge visibility.
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).
