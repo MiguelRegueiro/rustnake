@@ -16,14 +16,6 @@ Production-grade terminal Snake in Rust with deterministic ticks, decoupled core
   <img src="media/rustnakegameplay.webp" alt="Rustnake Gameplay" width="640">
 </p>
 
-## Status
-
-- Project maturity: stable CLI game.
-- CI gates on every push/PR:
-  - pinned toolchain verification (`fmt`, `check`, `clippy -D warnings`, `test`)
-  - MSRV verification (`1.85.0`)
-- Backward-compatible config migration is in place (`config_version`).
-
 ## Compatibility
 
 - Rust: `1.85+` (Edition 2024).
