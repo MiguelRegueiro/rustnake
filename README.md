@@ -8,9 +8,7 @@
   <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-orange"></a>
 </p>
 
-<p align="center">
 Production-grade terminal Snake in Rust with deterministic ticks, decoupled core/render architecture, non-blocking input, localization, and persistent settings.
-</p>
 
 <p align="center">
   <img src="media/rustnakegameplay.webp" alt="Rustnake Gameplay" width="640">
@@ -171,7 +169,6 @@ cargo test --all-targets --all-features --locked
 ## Changelog
 
 - [CHANGELOG.md](CHANGELOG.md)
-- [futureupgrades.md](futureupgrades.md)
 
 ## License
 

@@ -26,6 +26,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - README further tightened to match current automation and support policy details (CI job split, crates.io distribution note, and tag-driven automated release flow).
 - Project description copy updated in crate metadata and README to reflect architecture and runtime characteristics more precisely.
 - README simplified by removing the low-signal `Status` section for a leaner production-facing structure.
+- Removed `futureupgrades.md` and cleaned README references to keep user-facing docs focused and current.
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).
