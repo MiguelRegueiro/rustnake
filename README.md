@@ -2,84 +2,87 @@
 
 <p align="center">
   <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Latest Version" src="https://img.shields.io/github/v/tag/MiguelRegueiro/rustnake?sort=semver"></a>
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Downloads" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMiguelRegueiro%2Frustnake%2Freleases%2Flatest&query=%24.assets%5B0%5D.download_count&label=downloads"></a>
+  <a href="https://github.com/MiguelRegueiro/rustnake/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/MiguelRegueiro/rustnake/ci.yml?branch=main"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/MiguelRegueiro/rustnake"></a>
-  <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-edition%202021-orange"></a>
+  <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-orange"></a>
 </p>
 
 <p align="center">
-Terminal Snake, built in Rust, with responsive rendering, deterministic tick behavior, and modular game architecture.
-</p>
-
-<p align="center">
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake"><img alt="Download Latest Binary" src="https://img.shields.io/badge/Download-Latest_Binary-1f883d?style=flat"></a>
-  <a href="https://github.com/MiguelRegueiro/rustnake/releases"><img alt="Releases" src="https://img.shields.io/badge/View-Releases-0969da?style=flat"></a>
-  <a href="https://github.com/MiguelRegueiro/rustnake"><img alt="Source Code" src="https://img.shields.io/badge/Browse-Source_Code-6f42c1?style=flat"></a>
+Terminal Snake in Rust with deterministic game ticks, localization, config migration, and CI-verified quality gates.
 </p>
 
 <p align="center">
   <img src="media/rustnakegameplay.webp" alt="Rustnake Gameplay" width="640">
 </p>
 
----
+## Table of Contents
 
-## Quick Start
+- [Status](#status)
+- [Compatibility](#compatibility)
+- [Install](#install)
+- [Run](#run)
+- [Gameplay](#gameplay)
+- [Configuration and Data](#configuration-and-data)
+- [Development](#development)
+- [Release Operations](#release-operations)
+- [Troubleshooting](#troubleshooting)
+- [Changelog](#changelog)
+- [License](#license)
 
-### Latest release (fastest, Linux x86_64)
+## Status
+
+- Project maturity: stable CLI game.
+- CI gates on every push/PR: `fmt`, `check`, `clippy -D warnings`, `test`.
+- Backward-compatible config migration is in place (`config_version`).
+
+## Compatibility
+
+- Rust: `1.85+` (Edition 2024).
+- Primary tested target: Linux `x86_64-unknown-linux-gnu`.
+- Terminal requirements:
+  - Unicode-capable font (for box-drawing and symbols).
+  - ANSI escape sequence support.
+
+## Install
+
+### Option 1: Download latest release binary (Linux x86_64)
 
 ```bash
 curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -o rustnake
 chmod +x rustnake
-./rustnake
 ```
 
-Verified target: Linux x86_64.
-
-### Update to the newest release
-
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake -o rustnake
-chmod +x rustnake
-```
-
-### Check latest published tag
-
-```bash
-curl -fsSL https://api.github.com/repos/MiguelRegueiro/rustnake/releases/latest | grep -m1 '"tag_name"'
-```
-
-### Build from source
-
-Prerequisite: Rust stable toolchain (`rustup`, `cargo`).
+### Option 2: Build from source
 
 ```bash
 git clone https://github.com/MiguelRegueiro/rustnake.git
 cd rustnake
-cargo run --release
+cargo build --release --locked
 ```
 
-### Local launcher script
+`--locked` ensures dependency resolution matches `Cargo.lock` exactly.
+
+## Run
+
+```bash
+./rustnake
+```
+
+From source tree:
+
+```bash
+cargo run --release --locked
+```
+
+Helper script:
 
 ```bash
 ./run.sh           # release mode (default)
-./run.sh --dev     # debug/dev mode
+./run.sh --dev     # debug mode
 ./run.sh --help
 ```
 
----
-
-
 ## Gameplay
-
-### Features
-
-- Nokia-style wrap movement (no wall death).
-- Four difficulties with distinct base tick rates (`Easy`, `Medium`, `Hard`, `Extreme`).
-- Power-ups that affect speed, score, and snake size.
-- Dynamic pace scaling as score increases.
-- Per-difficulty high-score tracking.
-- Localized UI (`en`, `es`, `ja`, `pt`, `zh`) with persistent language setting.
-- Centered playfield and HUD with live terminal resize handling.
 
 ### Controls
 
@@ -88,13 +91,21 @@ cargo run --release
 | Move | `WASD` or `Arrow Keys` |
 | Pause | `P` |
 | Mute | `M` |
-| Back to Menu | `SPACE` |
+| Confirm menu option | `ENTER` or `SPACE` |
+| Select menu option directly | `1`-`6` |
 | Quit | `Q` |
 
-- Number keys (`1`-`6`) select visible menu options, depending on menu length.
-- `ENTER` or `SPACE` confirms menu selection.
+### Features
 
-### Difficulty Tick Rates
+- Wrap-around movement (Nokia style).
+- Four difficulty levels: `Easy`, `Medium`, `Hard`, `Extreme`.
+- Power-ups for speed, score, and size effects.
+- Dynamic pace scaling by score and difficulty.
+- Per-difficulty high scores.
+- Localized UI: `en`, `es`, `ja`, `pt`, `zh`.
+- Responsive layout with terminal resize support.
+
+### Base Tick Rates
 
 | Difficulty | Horizontal Tick | Vertical Tick |
 | --- | --- | --- |
@@ -103,60 +114,54 @@ cargo run --release
 | Hard | 60ms | 120ms |
 | Extreme | 35ms | 70ms |
 
-### Scoring and Power-Ups
+## Configuration and Data
 
-- Basic food (`●`): `+10`
-- Milestone marker (`★`): shown at score multiples of `50`
-- Speed Boost (`>`): temporary faster movement
-- Slow Down (`<`): temporary slower movement
-- Bonus (`$`): instant `+50`
-- Grow (`+`): adds 2 segments
-- Shrink (`-`): removes up to 2 segments (minimum length preserved)
+Config file location:
 
----
+- Primary: `~/.rustnake.toml`
+- Fallback: `./.rustnake.toml` (if `HOME` is unavailable)
 
-## Engineering Highlights
+Persisted data includes:
 
-- Deterministic tick scheduling with direction-aware tick-rate selection.
-- Bounded 2-step input queue for responsive turns without illegal reversals.
-- Incremental redraw via dirty-position tracking to reduce unnecessary terminal writes.
-- Persistence via `serde` + `toml` for per-difficulty best scores.
-- Config migration pipeline for backward-compatible `~/.rustnake.toml` upgrades.
-- Unit tests covering movement, collisions, speed effects, and score behavior.
+- `high_scores` by difficulty
+- user `settings` (language, pause on focus loss, sound, default difficulty)
+- `config_version` for migration handling
+
+## Development
+
+### Quality Commands
+
+```bash
+cargo fmt --all --check
+cargo check --all-targets --all-features --locked
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-targets --all-features --locked
+```
+
+### Repository Layout
 
 | Path | Responsibility |
 | --- | --- |
-| `src/core/` | State, movement, collisions, scoring, power-ups |
-| `src/i18n/` | Localization strings and UI text width helpers |
-| `src/input/` | Keyboard and resize events |
-| `src/render/` | Terminal drawing and HUD |
-| `src/layout/` | Centering and terminal-size validation |
-| `src/storage/` | High-score persistence |
-| `src/utils/` | Shared enums, constants, and types |
+| `src/core/` | Game state, movement, collisions, scoring, power-ups |
+| `src/i18n/` | Localization and text width helpers |
+| `src/input/` | Keyboard, focus, and resize event translation |
+| `src/layout/` | Terminal-size validation and centered layout |
+| `src/render/` | Terminal rendering and HUD drawing |
+| `src/storage/` | Config persistence and migration |
+| `src/utils/` | Shared constants and enums |
 
----
+## Release Operations
 
-## Proof of Quality
-
-```bash
-cargo fmt
-cargo check
-cargo clippy --all-targets --all-features
-cargo test
-```
-
-Config and high scores are persisted in:
-
-- `~/.rustnake.toml`
-- Fallback: `./.rustnake.toml` if `HOME` is unavailable
-
----
+1. Ensure all quality commands pass locally.
+2. Update [`CHANGELOG.md`](CHANGELOG.md).
+3. Create a semver tag (`vX.Y.Z`).
+4. Publish release artifacts on GitHub Releases.
 
 ## Troubleshooting
 
-- Terminal too small: resize until the warning clears (minimum is at least `40x25`, and width can be higher for some languages).
-- Visual artifacts after resize: resize once more to force full redraw.
-- No bell sound: your terminal may have bell notifications disabled.
+- Terminal too small: resize until the warning clears (minimum baseline `40x25`; some languages require wider terminals).
+- Display artifacts after resize: resize once more to force a full redraw.
+- Missing bell/sound cue: terminal bell may be disabled by local settings.
 
 ## Changelog
 
