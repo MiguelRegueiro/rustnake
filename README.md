@@ -19,13 +19,16 @@ Terminal Snake in Rust with deterministic game ticks, localization, config migra
 ## Status
 
 - Project maturity: stable CLI game.
-- CI gates on every push/PR: `fmt`, `check`, `clippy -D warnings`, `test`.
+- CI gates on every push/PR:
+  - pinned toolchain verification (`fmt`, `check`, `clippy -D warnings`, `test`)
+  - MSRV verification (`1.85.0`)
 - Backward-compatible config migration is in place (`config_version`).
 
 ## Compatibility
 
 - Rust: `1.85+` (Edition 2024).
 - Primary tested target: Linux `x86_64-unknown-linux-gnu`.
+- Crate distribution: [crates.io/crates/rustnake](https://crates.io/crates/rustnake)
 - Terminal requirements:
   - Unicode-capable font (for box-drawing and symbols).
   - ANSI escape sequence support.
@@ -43,6 +46,8 @@ Update to the latest published crate version:
 ```bash
 cargo install rustnake --locked --force
 ```
+
+By default, Cargo installs binaries to `~/.cargo/bin` (or your configured Cargo bin directory).
 
 ### Option 2: Download latest release binary (Linux x86_64)
 
@@ -161,8 +166,9 @@ cargo test --all-targets --all-features --locked
 
 1. Ensure all quality commands pass locally.
 2. Update [`CHANGELOG.md`](CHANGELOG.md).
-3. Create a semver tag (`vX.Y.Z`).
-4. Publish release artifacts on GitHub Releases.
+3. Commit and push to `main`.
+4. Create and push a semver tag (`vX.Y.Z`).
+5. GitHub Actions release workflow publishes notes automatically from `CHANGELOG.md`.
 
 ## Troubleshooting
 
