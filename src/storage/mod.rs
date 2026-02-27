@@ -2,12 +2,16 @@
 
 use crate::utils::{Difficulty, Language};
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 use std::{
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
 };
 
 const CURRENT_CONFIG_VERSION: u32 = 1;
+const MAX_CONFIG_BYTES: u64 = 64 * 1024;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -57,7 +61,7 @@ struct ConfigFileV1 {
     settings: Settings,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub language: Language,
@@ -133,6 +137,14 @@ fn migrate_config(raw: RawConfigFile) -> (AppConfig, bool) {
 }
 
 fn load_config_from_path(path: &Path) -> AppConfig {
+    let Ok(metadata) = fs::metadata(path) else {
+        return AppConfig::default();
+    };
+
+    if metadata.len() > MAX_CONFIG_BYTES {
+        return AppConfig::default();
+    }
+
     let Ok(contents) = fs::read_to_string(path) else {
         return AppConfig::default();
     };
@@ -148,6 +160,54 @@ fn load_config_from_path(path: &Path) -> AppConfig {
     AppConfig::default()
 }
 
+fn save_atomic(path: &Path, contents: &str) -> Result<(), String> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| "invalid config path".to_string())?
+        .to_string_lossy();
+
+    for attempt in 0..16u32 {
+        let tmp_path = parent.join(format!(
+            ".{}.tmp-{}-{}",
+            file_name,
+            std::process::id(),
+            attempt
+        ));
+
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+
+        let mut temp_file = match options.open(&tmp_path) {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err.to_string()),
+        };
+
+        if let Err(err) = temp_file.write_all(contents.as_bytes()) {
+            let _ = fs::remove_file(&tmp_path);
+            return Err(err.to_string());
+        }
+
+        if let Err(err) = temp_file.sync_all() {
+            let _ = fs::remove_file(&tmp_path);
+            return Err(err.to_string());
+        }
+
+        drop(temp_file);
+        if let Err(err) = fs::rename(&tmp_path, path) {
+            let _ = fs::remove_file(&tmp_path);
+            return Err(err.to_string());
+        }
+
+        return Ok(());
+    }
+
+    Err("failed to create temporary config file".to_string())
+}
+
 fn save_config_to_path(path: &Path, config: &AppConfig) -> Result<(), String> {
     let data = ConfigFileV1 {
         config_version: CURRENT_CONFIG_VERSION,
@@ -155,7 +215,7 @@ fn save_config_to_path(path: &Path, config: &AppConfig) -> Result<(), String> {
         settings: config.settings,
     };
     let serialized = toml::to_string(&data).map_err(|err| err.to_string())?;
-    fs::write(path, serialized).map_err(|err| err.to_string())
+    save_atomic(path, &serialized)
 }
 
 pub fn load_config() -> AppConfig {
@@ -171,6 +231,8 @@ pub fn save_config(config: &AppConfig) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_config_path(test_name: &str) -> PathBuf {
@@ -312,6 +374,37 @@ language = "es"
         let rewritten = fs::read_to_string(&path).unwrap();
         assert!(rewritten.contains("config_version = 1"));
         assert!(rewritten.contains("extreme = 0"));
+
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn oversized_config_file_is_ignored() {
+        let path = temp_config_path("oversized");
+        let oversized_data = "x".repeat((MAX_CONFIG_BYTES as usize) + 1);
+        fs::write(&path, oversized_data).unwrap();
+
+        let loaded = load_config_from_path(&path);
+        assert_eq!(loaded.high_scores, HighScores::default());
+        assert_eq!(loaded.settings, Settings::default());
+
+        let _ = fs::remove_file(path);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_config_uses_private_file_permissions() {
+        let path = temp_config_path("permissions");
+        let config = AppConfig::default();
+        save_config_to_path(&path, &config).unwrap();
+
+        let metadata = fs::metadata(&path).unwrap();
+        let mode = metadata.permissions().mode();
+        assert_eq!(
+            mode & 0o077,
+            0,
+            "config file must not be group/world readable"
+        );
 
         let _ = fs::remove_file(path);
     }
