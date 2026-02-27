@@ -27,6 +27,10 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Project description copy updated in crate metadata and README to reflect architecture and runtime characteristics more precisely.
 - README simplified by removing the low-signal `Status` section for a leaner production-facing structure.
 - Removed `futureupgrades.md` and cleaned README references to keep user-facing docs focused and current.
+- CI/release workflows now pin GitHub Actions by commit SHA and avoid floating action tags.
+- CI coverage expanded to Linux, macOS, and Windows for pinned-toolchain verification.
+- Supply-chain policy added via `deny.toml` with automated `cargo deny` checks for advisories, licenses, bans, and sources.
+- Release workflow now builds and uploads platform binaries (Linux/macOS/Windows) to each tagged GitHub release.
 
 ### Fixed
 - Maintainer: removed accidentally committed merge-conflict markers from `main` after the `v1.2.0` release cut and re-ran CI (no gameplay or API changes).

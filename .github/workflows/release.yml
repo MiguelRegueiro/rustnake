@@ -14,19 +14,27 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish GitHub Release
+  prepare:
+    name: Prepare Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
         with:
           fetch-depth: 0
 
@@ -55,13 +63,14 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.meta.outputs.tag }}"
+          git fetch --tags --force
           if ! git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
             echo "Tag '$tag' does not exist in repository history" >&2
             exit 1
           fi
+          git checkout "refs/tags/$tag"
 
       - name: Build release notes from changelog
-        id: notes
         shell: bash
         run: |
           set -euo pipefail
@@ -87,10 +96,84 @@ jobs:
             exit 1
           fi
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.meta.outputs.tag }}"
+          title="Rustnake $tag"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "$title" --notes-file release_notes.md
+          else
+            gh release create "$tag" --verify-tag --title "$title" --notes-file release_notes.md
+          fi
+
+  binaries:
+    name: Build & Upload (${{ matrix.os }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: Rustnake ${{ steps.meta.outputs.tag }}
-          body_path: release_notes.md
-          generate_release_notes: true
+          ref: refs/tags/${{ needs.prepare.outputs.tag }}
+
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup default 1.93.0
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Package asset
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="target/release/rustnake"
+          asset_name="rustnake-linux-x86_64"
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            source="target/release/rustnake.exe"
+            asset_name="rustnake-windows-x86_64.exe"
+          elif [[ "${RUNNER_OS}" == "macOS" ]]; then
+            arch="$(uname -m)"
+            if [[ "$arch" == "arm64" ]]; then
+              asset_name="rustnake-macos-arm64"
+            else
+              asset_name="rustnake-macos-x86_64"
+            fi
+          fi
+
+          if [[ ! -f "$source" ]]; then
+            echo "Missing build artifact: $source" >&2
+            exit 1
+          fi
+          asset_path="$RUNNER_TEMP/$asset_name"
+          cp "$source" "$asset_path"
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+          echo "asset_path=$asset_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload asset to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
+            "${{ steps.package.outputs.asset_path }}#${{ steps.package.outputs.asset_name }}" \
+            --clobber
