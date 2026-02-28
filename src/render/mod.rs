@@ -10,6 +10,16 @@ use crate::utils::Language;
 use std::io::Write;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
+const ANSI_RESET: &str = "\x1b[0m";
+const STYLE_MENU_BORDER: &str = "\x1b[38;2;89;138;207m";
+const STYLE_MENU_TITLE: &str = "\x1b[1;97m";
+const STYLE_MENU_SUBTITLE: &str = "\x1b[2;37m";
+const STYLE_MENU_HINT: &str = "\x1b[2;37m";
+const STYLE_MENU_OPTION: &str = "\x1b[97m";
+const STYLE_MENU_OPTION_DANGER: &str = "\x1b[91m";
+const STYLE_MENU_OPTION_SELECTED: &str = "\x1b[1;38;2;255;255;255;48;2;89;138;207m";
+const STYLE_MENU_OPTION_SELECTED_DANGER: &str = "\x1b[1;97;41m";
+
 fn center_start(total: u16, content: u16) -> u16 {
     total.saturating_sub(content) / 2 + 1
 }
@@ -70,6 +80,46 @@ fn draw_box_line(y: u16, x: u16, inner_width: u16, text: &str) {
     let clipped = clip_by_display_width(text, inner_width);
     let text_x = x + 1 + (inner_width.saturating_sub(display_width(&clipped)) / 2);
     print_clipped(y, text_x, &clipped, inner_width);
+}
+
+fn draw_panel_frame(y: u16, x: u16, inner_width: u16, inner_height: u16, border_style: &str) {
+    print!(
+        "{}\x1b[{};{}H┌{}┐{}",
+        border_style,
+        y,
+        x,
+        "─".repeat(inner_width as usize),
+        ANSI_RESET
+    );
+    for line_y in (y + 1)..=(y + inner_height) {
+        print!(
+            "{}\x1b[{};{}H│{}│{}",
+            border_style,
+            line_y,
+            x,
+            " ".repeat(inner_width as usize),
+            ANSI_RESET
+        );
+    }
+    print!(
+        "{}\x1b[{};{}H└{}┘{}",
+        border_style,
+        y + inner_height + 1,
+        x,
+        "─".repeat(inner_width as usize),
+        ANSI_RESET
+    );
+}
+
+fn draw_panel_separator(y: u16, x: u16, inner_width: u16, border_style: &str) {
+    print!(
+        "{}\x1b[{};{}H├{}┤{}",
+        border_style,
+        y,
+        x,
+        "─".repeat(inner_width as usize),
+        ANSI_RESET
+    );
 }
 
 fn draw_border(layout: &Layout) {
@@ -305,74 +355,130 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
 
 pub fn draw_menu(
     title: &str,
+    subtitle: Option<&str>,
     options: &[String],
     selected_option: usize,
+    danger_option: Option<usize>,
     term_width: u16,
     term_height: u16,
     language: Language,
 ) {
     print!("\x1b[2J\x1b[H");
 
-    let max_title_inner = term_width.saturating_sub(2).max(1);
-    let title_width = display_width(title).min(max_title_inner);
-    let mut title_inner_width = title_width.max(22).min(max_title_inner);
-    if (title_inner_width - title_width) % 2 != 0 {
-        title_inner_width = (title_inner_width + 1).min(max_title_inner);
-    }
-    let title_box_width = title_inner_width + 2;
-    let menu_height = options.len() as u16 + 9;
-    let menu_start_y = center_start(term_height, menu_height);
-    let title_start_x = center_start(term_width, title_box_width);
+    let subtitle = subtitle.filter(|text| !text.is_empty());
+    let nav_hint = i18n::menu_navigation_hint(language);
+    let confirm_hint = i18n::menu_confirm_hint(language);
 
-    print!(
-        "\x1b[{};{}H┌{}┐",
-        menu_start_y,
-        title_start_x,
-        "─".repeat((title_box_width - 2) as usize)
-    );
-    print!(
-        "\x1b[{};{}H│{}│",
-        menu_start_y + 1,
-        title_start_x,
-        " ".repeat((title_box_width - 2) as usize)
-    );
-    let title_x = title_start_x + 1 + (title_inner_width.saturating_sub(title_width) / 2);
-    print_clipped(menu_start_y + 1, title_x, title, title_inner_width);
-    print!(
-        "\x1b[{};{}H└{}┘",
-        menu_start_y + 2,
-        title_start_x,
-        "─".repeat((title_box_width - 2) as usize)
-    );
-
+    let max_inner_width = term_width.saturating_sub(2).max(1);
+    let option_overhead = 6u16; // marker + shortcut token + spacing
     let option_label_width = options
         .iter()
         .map(|option| display_width(option))
         .max()
         .unwrap_or(0)
-        .min(term_width.saturating_sub(2).max(1));
-    let option_line_width = option_label_width + 2;
-    let options_start_x = center_start(term_width, option_line_width);
-    for (i, option) in options.iter().enumerate() {
-        let marker = if selected_option == i { ">" } else { " " };
-        let color = if selected_option == i {
-            "\x1b[92m"
-        } else {
-            "\x1b[97m"
-        };
-        let clipped_label = clip_by_display_width(option, option_label_width);
-        let padded_label = pad_to_display_width(&clipped_label, option_label_width);
-        let line = format!("{} {}", marker, padded_label);
-        let row_y = menu_start_y + 4 + i as u16;
-        print!("\x1b[{};1H\x1b[K", row_y);
-        print!("\x1b[{};{}H{}", row_y, options_start_x, color);
-        print_clipped(row_y, options_start_x, &line, option_line_width);
-    }
-    print!("\x1b[0m");
+        .min(max_inner_width);
+    let option_row_width = option_label_width.saturating_add(option_overhead);
+    let title_width = display_width(title);
+    let subtitle_width = subtitle.map(display_width).unwrap_or(0);
+    let footer_width = display_width(nav_hint).max(display_width(confirm_hint));
 
-    let info_y = menu_start_y + 5 + options.len() as u16;
-    draw_centered_line(info_y, term_width, i18n::menu_navigation_hint(language));
-    draw_centered_line(info_y + 1, term_width, i18n::menu_confirm_hint(language));
+    let desired_inner_width = title_width
+        .max(subtitle_width)
+        .max(footer_width)
+        .max(option_row_width.saturating_add(2))
+        .max(32);
+    let panel_inner_width = desired_inner_width.min(max_inner_width);
+    let row_width = panel_inner_width.saturating_sub(2).max(1);
+    let row_label_width = row_width.saturating_sub(option_overhead);
+    let title_lines = if subtitle.is_some() { 2u16 } else { 1u16 };
+    let panel_inner_height = title_lines + 1 + 1 + options.len() as u16 + 1 + 1 + 2;
+    let panel_width = panel_inner_width + 2;
+    let panel_height = panel_inner_height + 2;
+    let panel_start_y = center_start(term_height, panel_height);
+    let panel_start_x = center_start(term_width, panel_width);
+
+    draw_panel_frame(
+        panel_start_y,
+        panel_start_x,
+        panel_inner_width,
+        panel_inner_height,
+        STYLE_MENU_BORDER,
+    );
+
+    let mut row_y = panel_start_y + 1;
+    let draw_title_width = title_width.min(panel_inner_width);
+    let title_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(draw_title_width) / 2);
+    print!("{}", STYLE_MENU_TITLE);
+    print_clipped(row_y, title_x, title, panel_inner_width);
+    print!("{}", ANSI_RESET);
+    row_y += 1;
+
+    if let Some(subtitle_text) = subtitle {
+        let subtitle_draw_width = display_width(subtitle_text).min(panel_inner_width);
+        let subtitle_x =
+            panel_start_x + 1 + (panel_inner_width.saturating_sub(subtitle_draw_width) / 2);
+        print!("{}", STYLE_MENU_SUBTITLE);
+        print_clipped(row_y, subtitle_x, subtitle_text, panel_inner_width);
+        print!("{}", ANSI_RESET);
+        row_y += 1;
+    }
+
+    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+    row_y += 2; // separator + intentional breathing room before options
+    let options_start_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(row_width) / 2);
+    for (i, option) in options.iter().enumerate() {
+        let is_selected = selected_option == i;
+        let is_danger = matches!(danger_option, Some(index) if index == i);
+        let marker = if is_selected { ">" } else { " " };
+        let shortcut = if i < 6 {
+            format!("[{}]", i + 1)
+        } else {
+            "[ ]".to_string()
+        };
+        let clipped_label = clip_by_display_width(option, row_label_width);
+        let padded_label = pad_to_display_width(&clipped_label, row_label_width);
+        let line = format!("{} {} {}", marker, shortcut, padded_label);
+        let row_style = if is_selected {
+            if is_danger {
+                STYLE_MENU_OPTION_SELECTED_DANGER
+            } else {
+                STYLE_MENU_OPTION_SELECTED
+            }
+        } else if is_danger {
+            STYLE_MENU_OPTION_DANGER
+        } else {
+            STYLE_MENU_OPTION
+        };
+        print!(
+            "{}\x1b[{};{}H{}{}",
+            row_style,
+            row_y,
+            options_start_x,
+            " ".repeat(row_width as usize),
+            ANSI_RESET
+        );
+        print!("{}", row_style);
+        print_clipped(row_y, options_start_x, &line, row_width);
+        print!("{}", ANSI_RESET);
+        row_y += 1;
+    }
+    row_y += 1;
+    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+    row_y += 1;
+
+    let nav_hint_width = display_width(nav_hint).min(panel_inner_width);
+    let nav_hint_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(nav_hint_width) / 2);
+    print!("{}", STYLE_MENU_HINT);
+    print_clipped(row_y, nav_hint_x, nav_hint, panel_inner_width);
+    print!("{}", ANSI_RESET);
+    row_y += 1;
+
+    let confirm_hint_width = display_width(confirm_hint).min(panel_inner_width);
+    let confirm_hint_x =
+        panel_start_x + 1 + (panel_inner_width.saturating_sub(confirm_hint_width) / 2);
+    print!("{}", STYLE_MENU_HINT);
+    print_clipped(row_y, confirm_hint_x, confirm_hint, panel_inner_width);
+    print!("{}", ANSI_RESET);
 
     let _ = std::io::stdout().flush();
 }
@@ -386,7 +492,12 @@ pub fn draw_high_scores_menu(
     print!("\x1b[2J\x1b[H");
 
     let entries = [
-        (Difficulty::Easy, high_scores.easy, "I", "\x1b[36m"),
+        (
+            Difficulty::Easy,
+            high_scores.easy,
+            "I",
+            "\x1b[38;2;89;138;207m",
+        ),
         (Difficulty::Medium, high_scores.medium, "II", "\x1b[32m"),
         (Difficulty::Hard, high_scores.hard, "III", "\x1b[33m"),
         (Difficulty::Extreme, high_scores.extreme, "IV", "\x1b[31m"),
@@ -426,85 +537,99 @@ pub fn draw_high_scores_menu(
     let rows = if use_two_rows { 2u16 } else { 1u16 };
     let columns = if use_two_rows { 2u16 } else { 4u16 };
     let cards_block_height = rows * card_height + (rows - 1) * row_gap;
-    let menu_height = cards_block_height + 7;
+    let cards_row_width = columns * card_width + (columns - 1) * gap;
 
     let title = i18n::high_scores_menu_title(language);
-    let max_title_inner = term_width.saturating_sub(2).max(1);
-    let title_width = display_width(title).min(max_title_inner);
-    let mut title_inner_width = title_width.max(22).min(max_title_inner);
-    if (title_inner_width - title_width) % 2 != 0 {
-        title_inner_width = (title_inner_width + 1).min(max_title_inner);
-    }
-    let title_box_width = title_inner_width + 2;
-    let title_start_x = center_start(term_width, title_box_width);
+    let back_line = format!("> {}", i18n::menu_back(language));
+    let back_hint = i18n::high_scores_back_hint(language);
+    let max_inner_width = term_width.saturating_sub(2).max(1);
+    let desired_inner_width = cards_row_width
+        .saturating_add(2)
+        .max(display_width(title))
+        .max(display_width(&back_line))
+        .max(display_width(back_hint))
+        .max(32);
+    let panel_inner_width = desired_inner_width.min(max_inner_width);
+    let panel_inner_height = cards_block_height + 7;
+    let panel_width = panel_inner_width + 2;
+    let panel_height = panel_inner_height + 2;
+    let panel_start_x = center_start(term_width, panel_width);
+    let panel_start_y = center_start(term_height, panel_height);
 
-    let menu_start_y = center_start(term_height, menu_height);
-
-    print!(
-        "\x1b[{};{}H┌{}┐",
-        menu_start_y,
-        title_start_x,
-        "─".repeat((title_box_width - 2) as usize)
-    );
-    print!(
-        "\x1b[{};{}H│{}│",
-        menu_start_y + 1,
-        title_start_x,
-        " ".repeat((title_box_width - 2) as usize)
-    );
-    let title_x = title_start_x + 1 + (title_inner_width.saturating_sub(title_width) / 2);
-    print_clipped(menu_start_y + 1, title_x, title, title_inner_width);
-    print!(
-        "\x1b[{};{}H└{}┘",
-        menu_start_y + 2,
-        title_start_x,
-        "─".repeat((title_box_width - 2) as usize)
+    draw_panel_frame(
+        panel_start_y,
+        panel_start_x,
+        panel_inner_width,
+        panel_inner_height,
+        STYLE_MENU_BORDER,
     );
 
-    let cards_y = menu_start_y + 4;
+    let mut row_y = panel_start_y + 1;
+    let title_draw_width = display_width(title).min(panel_inner_width);
+    let title_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(title_draw_width) / 2);
+    print!("{}", STYLE_MENU_TITLE);
+    print_clipped(row_y, title_x, title, panel_inner_width);
+    print!("{}", ANSI_RESET);
+    row_y += 1;
+
+    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+    row_y += 2; // separator + breathing room
+    let cards_y = row_y;
+
     let draw_card =
         |x: u16, y: u16, difficulty: Difficulty, score: u32, badge: &str, color: &str| {
             let label = i18n::difficulty_label(language, difficulty);
             let score_text = score.to_string();
 
             print!(
-                "\x1b[{};{}H┌{}┐",
+                "{}\x1b[{};{}H┌{}┐{}",
+                color,
                 y,
                 x,
-                "─".repeat(card_inner_width as usize)
+                "─".repeat(card_inner_width as usize),
+                ANSI_RESET
             );
             for line_y in (y + 1)..=(y + card_inner_height) {
                 print!(
-                    "\x1b[{};{}H│{}│",
+                    "{}\x1b[{};{}H│{}│{}",
+                    color,
                     line_y,
                     x,
-                    " ".repeat(card_inner_width as usize)
+                    " ".repeat(card_inner_width as usize),
+                    ANSI_RESET
                 );
             }
             print!(
-                "\x1b[{};{}H└{}┘",
+                "{}\x1b[{};{}H└{}┘{}",
+                color,
                 y + card_inner_height + 1,
                 x,
-                "─".repeat(card_inner_width as usize)
+                "─".repeat(card_inner_width as usize),
+                ANSI_RESET
             );
 
             let badge_x = x + 1 + (card_inner_width.saturating_sub(display_width(badge)) / 2);
             print!("\x1b[{};{}H{}", y + 1, badge_x, color);
             print_clipped(y + 1, badge_x, badge, card_inner_width);
-            print!("\x1b[0m");
+            print!("{}", ANSI_RESET);
 
             let label_x = x + 1 + (card_inner_width.saturating_sub(display_width(label)) / 2);
+            print!("{}", STYLE_MENU_OPTION);
             print_clipped(y + 2, label_x, label, card_inner_width);
+            print!("{}", ANSI_RESET);
 
             let best_x = x + 1 + (card_inner_width.saturating_sub(display_width(best_label)) / 2);
+            print!("{}", STYLE_MENU_SUBTITLE);
             print_clipped(y + 3, best_x, best_label, card_inner_width);
+            print!("{}", ANSI_RESET);
 
             let score_x = x + 1 + (card_inner_width.saturating_sub(display_width(&score_text)) / 2);
+            print!("{}", STYLE_MENU_TITLE);
             print_clipped(y + 4, score_x, &score_text, card_inner_width);
+            print!("{}", ANSI_RESET);
         };
 
-    let row_width = columns * card_width + (columns - 1) * gap;
-    let row_start_x = center_start(term_width, row_width);
+    let row_start_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(cards_row_width) / 2);
     for (index, (difficulty, score, badge, color)) in entries.iter().enumerate() {
         let row = (index as u16) / columns;
         let col = (index as u16) % columns;
@@ -513,18 +638,33 @@ pub fn draw_high_scores_menu(
         draw_card(x, y, *difficulty, *score, badge, color);
     }
 
-    let back_y = cards_y + cards_block_height + 1;
+    row_y = cards_y + cards_block_height;
+    row_y += 1;
+    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+    row_y += 1;
 
-    draw_centered_line(
-        back_y,
-        term_width,
-        &format!("> {}", i18n::menu_back(language)),
+    let back_row_width = panel_inner_width.saturating_sub(2).max(1);
+    let back_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(back_row_width) / 2);
+    let clipped_back_line = clip_by_display_width(&back_line, back_row_width);
+    let padded_back_line = pad_to_display_width(&clipped_back_line, back_row_width);
+    print!(
+        "{}\x1b[{};{}H{}{}",
+        STYLE_MENU_OPTION_SELECTED,
+        row_y,
+        back_x,
+        " ".repeat(back_row_width as usize),
+        ANSI_RESET
     );
-    draw_centered_line(
-        back_y + 2,
-        term_width,
-        i18n::high_scores_back_hint(language),
-    );
+    print!("{}", STYLE_MENU_OPTION_SELECTED);
+    print_clipped(row_y, back_x, &padded_back_line, back_row_width);
+    print!("{}", ANSI_RESET);
+    row_y += 1;
+
+    let back_hint_width = display_width(back_hint).min(panel_inner_width);
+    let back_hint_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(back_hint_width) / 2);
+    print!("{}", STYLE_MENU_HINT);
+    print_clipped(row_y, back_hint_x, back_hint, panel_inner_width);
+    print!("{}", ANSI_RESET);
 
     let _ = std::io::stdout().flush();
 }

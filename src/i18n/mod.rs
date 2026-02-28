@@ -429,7 +429,7 @@ pub fn game_over_quit_hint(language: Language) -> &'static str {
 }
 
 pub fn minimum_ui_width(language: Language) -> u16 {
-    let option_overhead = 2u16; // selector marker + space
+    let option_overhead = 6u16; // selector marker + shortcut token + spacing
     let max_difficulty = difficulty_label(language, Difficulty::Extreme);
     let difficulty_main_line = format!("{}: {}", menu_difficulty(language), max_difficulty);
     let pause_value = if text_width(setting_on(language)) >= text_width(setting_off(language)) {

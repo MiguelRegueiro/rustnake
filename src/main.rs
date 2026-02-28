@@ -116,9 +116,14 @@ fn show_menu(
                         ui_language,
                     );
                 } else {
-                    let (title, options, selected) = match screen {
+                    let (title, subtitle, options, selected, danger_option) = match screen {
                         MenuScreen::Main => (
                             i18n::menu_title(ui_language),
+                            Some(format!(
+                                "{}: {}",
+                                i18n::menu_difficulty(ui_language),
+                                i18n::difficulty_label(ui_language, *selected_difficulty)
+                            )),
                             vec![
                                 i18n::menu_play(ui_language).to_string(),
                                 format!(
@@ -131,9 +136,18 @@ fn show_menu(
                                 i18n::menu_quit(ui_language).to_string(),
                             ],
                             main_selected,
+                            None,
                         ),
                         MenuScreen::Difficulty => (
                             i18n::difficulty_menu_title(ui_language),
+                            Some(format!(
+                                "{}: {}",
+                                i18n::menu_difficulty(ui_language),
+                                i18n::difficulty_label(
+                                    ui_language,
+                                    difficulty_from_index(difficulty_selected.min(3))
+                                )
+                            )),
                             vec![
                                 i18n::difficulty_label(ui_language, Difficulty::Easy).to_string(),
                                 i18n::difficulty_label(ui_language, Difficulty::Medium).to_string(),
@@ -143,9 +157,21 @@ fn show_menu(
                                 i18n::menu_back(ui_language).to_string(),
                             ],
                             difficulty_selected,
+                            None,
                         ),
                         MenuScreen::Settings => (
                             i18n::menu_settings(ui_language),
+                            Some(format!(
+                                "{}: {}  {}: {}",
+                                i18n::language_label(ui_language),
+                                i18n::language_name(settings.language),
+                                i18n::settings_sound_label(ui_language),
+                                if settings.sound_on {
+                                    i18n::setting_on(ui_language)
+                                } else {
+                                    i18n::setting_off(ui_language)
+                                }
+                            )),
                             vec![
                                 format!(
                                     "{}: {}",
@@ -174,6 +200,7 @@ fn show_menu(
                                 i18n::menu_back(ui_language).to_string(),
                             ],
                             settings_selected,
+                            Some(3),
                         ),
                         MenuScreen::Language => {
                             let mut options: Vec<String> = Language::ALL
@@ -183,24 +210,34 @@ fn show_menu(
                             options.push(i18n::menu_back(ui_language).to_string());
                             (
                                 i18n::language_popup_title(ui_language),
+                                Some(format!(
+                                    "{}: {}",
+                                    i18n::language_label(ui_language),
+                                    i18n::language_name(settings.language)
+                                )),
                                 options,
                                 language_selected,
+                                None,
                             )
                         }
                         MenuScreen::ResetScoresConfirm => (
                             i18n::reset_high_scores_title(ui_language),
+                            Some(i18n::settings_reset_high_scores_label(ui_language).to_string()),
                             vec![
                                 i18n::confirm_yes(ui_language).to_string(),
                                 i18n::confirm_no(ui_language).to_string(),
                             ],
                             reset_selected,
+                            Some(0),
                         ),
                         MenuScreen::HighScores => unreachable!(),
                     };
                     render::draw_menu(
                         title,
+                        subtitle.as_deref(),
                         &options,
                         selected,
+                        danger_option,
                         term_size.0,
                         term_size.1,
                         ui_language,
