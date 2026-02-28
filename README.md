@@ -25,12 +25,13 @@ rustnake
 
 ## Support Tiers
 
-- Tier 1: Linux (`x86_64-unknown-linux-gnu`) with primary validation coverage.
-- Tier 2: macOS and Windows release binaries with CI smoke checks.
+- Tier 1: Linux (`x86_64-unknown-linux-gnu`) is fully supported, with Cargo as the primary install path and Linux release binaries as a supported alternative.
+- Tier 2: macOS and Windows are provided as convenience binary distributions with CI smoke checks.
 
 ## Binary Trust Policy
 
-- Release binaries are unsigned by default.
+- Tier 2 binaries (macOS/Windows) are intentionally unsigned as project policy.
+- Linux remains the primary supported path.
 - On first run, macOS may show Gatekeeper prompts and Windows may show SmartScreen prompts.
 - There is currently no planned signing/notarization rollout.
 
