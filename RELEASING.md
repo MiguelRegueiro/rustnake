@@ -9,24 +9,11 @@ Maintainer-only release checklist for Rustnake.
 - `CHANGELOG.md` contains an entry for the release version.
 - `Cargo.toml` version matches the intended tag version.
 
-## Optional signing setup
+## Signing policy
 
-Release signing is optional. If the required secrets are not configured, signing/notarization steps are skipped and binaries are still published.
-
-Current policy:
-- Signing/notarization is not enabled.
+- Release binaries are intentionally unsigned on all platforms.
 - No signing/notarization rollout is currently planned.
-- CI signing steps remain in workflow as optional capability only.
-
-- macOS signing + notarization secrets:
-  - `MACOS_CERTIFICATE_P12_BASE64`
-  - `MACOS_CERTIFICATE_PASSWORD`
-  - `APPLE_NOTARY_KEY_ID`
-  - `APPLE_NOTARY_ISSUER_ID`
-  - `APPLE_NOTARY_PRIVATE_KEY_P8_BASE64`
-- Windows signing secrets:
-  - `WINDOWS_CERTIFICATE_PFX_BASE64`
-  - `WINDOWS_CERTIFICATE_PASSWORD`
+- CI does not run signing/notarization steps.
 
 ## Release steps
 

@@ -34,7 +34,7 @@ No changes yet.
   - macOS: `~/Library/Application Support/Rustnake/config.toml`
   - Windows: `%APPDATA%\\Rustnake\\config.toml`
 - Legacy config migration now runs on first load when old config locations are detected.
-- Release signing/notarization steps are now optional and run only when required secrets are configured.
+- Release workflow signing/notarization logic was removed to match the unsigned-binaries project policy.
 - Crate metadata description simplified to: `Classic Snake for the terminal, built in Rust.`
 
 ### Fixed
