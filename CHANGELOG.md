@@ -7,6 +7,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
+No changes yet.
+
+### Changed
+No changes yet.
+
+### Fixed
+No changes yet.
+
+## [1.5.1] - 2026-02-28
+
+### Added
 - Full ANSI screen snapshot coverage for key render states:
   - main menu
   - high scores
