@@ -7,10 +7,18 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
-No changes yet.
+- Full ANSI screen snapshot coverage for key render states:
+  - main menu
+  - high scores
+  - gameplay game-over panel
 
 ### Changed
 - Gameplay preview image (`media/rustnakegameplay.webp`) was refreshed.
+- Renderer `menu` module was split into focused submodules:
+  - `src/render/menu/menu_main.rs`
+  - `src/render/menu/menu_high_scores.rs`
+  - `src/render/menu/menu_cache.rs`
+- Render output in tests now uses an internal capture path instead of writing ANSI sequences to test stdout.
 
 ### Fixed
 No changes yet.
