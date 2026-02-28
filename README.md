@@ -37,6 +37,12 @@ rustnake
 
 ## Install and Update
 
+| Platform | Tier | Support |
+| --- | --- | --- |
+| Linux | Tier 1 | Recommended, fully supported |
+| macOS | Tier 2 | Convenience binary (unsigned) |
+| Windows | Tier 2 | Convenience binary (unsigned) |
+
 ### Linux (Tier 1)
 
 Install (release binary):
@@ -69,23 +75,21 @@ cargo install rustnake --locked --force
 
 `--locked` keeps dependency resolution reproducible.
 
-### macOS (Tier 2)
+<details>
+<summary>macOS (Tier 2)</summary>
 
-Install (system-wide):
+Install or update (system-wide):
 
 ```bash
 curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
 chmod +x rustnake
 sudo install -m 755 rustnake /usr/local/bin/rustnake
-rustnake
 ```
 
-Update (system-wide):
+Run:
 
 ```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
-chmod +x rustnake
-sudo install -m 755 rustnake /usr/local/bin/rustnake
+rustnake
 ```
 
 Install or update (no `sudo`, user-only):
@@ -97,26 +101,27 @@ install -m 755 rustnake "$HOME/.local/bin/rustnake"
 ```
 
 If unsigned, macOS may ask for confirmation in Privacy & Security on first run.
+</details>
 
-### Windows (Tier 2)
+<details>
+<summary>Windows (Tier 2)</summary>
 
-Install (PowerShell):
+Install or update (PowerShell):
 
 ```powershell
 $InstallDir = Join-Path $env:LOCALAPPDATA "Rustnake"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe" -OutFile (Join-Path $InstallDir "rustnake.exe")
+```
+
+Run:
+
+```powershell
 & (Join-Path $InstallDir "rustnake.exe")
 ```
 
-Update (PowerShell):
-
-```powershell
-$InstallDir = Join-Path $env:LOCALAPPDATA "Rustnake"
-Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe" -OutFile (Join-Path $InstallDir "rustnake.exe")
-```
-
 On unsigned binaries, Windows may show a SmartScreen prompt on first run.
+</details>
 
 ## Build from source
 
