@@ -83,6 +83,18 @@ fn difficulty_from_index(index: usize) -> Difficulty {
     }
 }
 
+fn menu_required_min_size(language: Language) -> layout::MinSize {
+    let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, language);
+    let menu_floor = layout::MinSize {
+        width: 34,
+        height: 23,
+    };
+    layout::MinSize {
+        width: gameplay_min.width.max(menu_floor.width),
+        height: gameplay_min.height.max(menu_floor.height),
+    }
+}
+
 fn show_menu(
     rx: &mpsc::Receiver<GameInput>,
     term_size: &mut (u16, u16),
@@ -102,14 +114,7 @@ fn show_menu(
     loop {
         let ui_language = settings.language;
         let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, ui_language);
-        let menu_min = layout::MinSize {
-            width: 34,
-            height: 23,
-        };
-        let required_min = layout::MinSize {
-            width: gameplay_min.width.max(menu_min.width),
-            height: gameplay_min.height.max(menu_min.height),
-        };
+        let required_min = menu_required_min_size(ui_language);
         let can_start_game =
             term_size.0 >= gameplay_min.width && term_size.1 >= gameplay_min.height;
         let can_render_menu =
@@ -645,4 +650,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_required_min_size_applies_menu_safety_floor() {
+        for language in Language::ALL {
+            let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, language);
+            let menu_min = menu_required_min_size(language);
+            assert_eq!(menu_min.width, gameplay_min.width.max(34));
+            assert_eq!(menu_min.height, gameplay_min.height.max(23));
+        }
+    }
 }
