@@ -103,12 +103,64 @@ impl From<LegacyHighScoreFile> for HighScores {
     }
 }
 
-fn config_path() -> PathBuf {
+fn legacy_local_config_path() -> PathBuf {
+    PathBuf::from(".rustnake.toml")
+}
+
+fn legacy_home_config_path() -> Option<PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home).join(".rustnake.toml");
+        return Some(PathBuf::from(home).join(".rustnake.toml"));
+    }
+    #[cfg(target_os = "windows")]
+    if let Ok(user_profile) = std::env::var("USERPROFILE") {
+        return Some(PathBuf::from(user_profile).join(".rustnake.toml"));
     }
 
-    PathBuf::from(".rustnake.toml")
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn config_path() -> PathBuf {
+    if let Ok(app_data) = std::env::var("APPDATA") {
+        return PathBuf::from(app_data).join("Rustnake").join("config.toml");
+    }
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        return PathBuf::from(local_app_data)
+            .join("Rustnake")
+            .join("config.toml");
+    }
+    if let Ok(user_profile) = std::env::var("USERPROFILE") {
+        return PathBuf::from(user_profile)
+            .join("AppData")
+            .join("Roaming")
+            .join("Rustnake")
+            .join("config.toml");
+    }
+
+    legacy_local_config_path()
+}
+
+#[cfg(target_os = "macos")]
+fn config_path() -> PathBuf {
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home)
+            .join("Library")
+            .join("Application Support")
+            .join("Rustnake")
+            .join("config.toml");
+    }
+
+    legacy_local_config_path()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn config_path() -> PathBuf {
+    legacy_home_config_path().unwrap_or_else(legacy_local_config_path)
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
+fn config_path() -> PathBuf {
+    legacy_local_config_path()
 }
 
 fn migrate_config(raw: RawConfigFile) -> (AppConfig, bool) {
@@ -136,20 +188,17 @@ fn migrate_config(raw: RawConfigFile) -> (AppConfig, bool) {
     (migrated, should_persist_migration)
 }
 
-fn load_config_from_path(path: &Path) -> AppConfig {
-    let Ok(metadata) = fs::metadata(path) else {
-        return AppConfig::default();
-    };
-
+fn load_raw_config(path: &Path) -> Option<RawConfigFile> {
+    let metadata = fs::metadata(path).ok()?;
     if metadata.len() > MAX_CONFIG_BYTES {
-        return AppConfig::default();
+        return None;
     }
+    let contents = fs::read_to_string(path).ok()?;
+    toml::from_str::<RawConfigFile>(&contents).ok()
+}
 
-    let Ok(contents) = fs::read_to_string(path) else {
-        return AppConfig::default();
-    };
-
-    if let Ok(raw) = toml::from_str::<RawConfigFile>(&contents) {
+fn load_config_from_path(path: &Path) -> AppConfig {
+    if let Some(raw) = load_raw_config(path) {
         let (config, migrated) = migrate_config(raw);
         if migrated {
             let _ = save_config_to_path(path, &config);
@@ -160,8 +209,34 @@ fn load_config_from_path(path: &Path) -> AppConfig {
     AppConfig::default()
 }
 
+fn migrate_legacy_config_if_needed(target_path: &Path) {
+    if fs::metadata(target_path).is_ok() {
+        return;
+    }
+
+    let mut legacy_paths = Vec::with_capacity(2);
+    if let Some(path) = legacy_home_config_path() {
+        legacy_paths.push(path);
+    }
+    legacy_paths.push(legacy_local_config_path());
+
+    for legacy_path in legacy_paths {
+        if legacy_path == target_path {
+            continue;
+        }
+        let Some(raw) = load_raw_config(&legacy_path) else {
+            continue;
+        };
+        let (config, _) = migrate_config(raw);
+        if save_config_to_path(target_path, &config).is_ok() {
+            break;
+        }
+    }
+}
+
 fn save_atomic(path: &Path, contents: &str) -> Result<(), String> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     let file_name = path
         .file_name()
         .ok_or_else(|| "invalid config path".to_string())?
@@ -220,6 +295,7 @@ fn save_config_to_path(path: &Path, config: &AppConfig) -> Result<(), String> {
 
 pub fn load_config() -> AppConfig {
     let path = config_path();
+    migrate_legacy_config_if_needed(&path);
     load_config_from_path(&path)
 }
 

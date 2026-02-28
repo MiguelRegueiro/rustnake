@@ -220,7 +220,20 @@ jobs:
           rustup default 1.93.0
 
       - name: Build release binary
-        run: cargo build --release --locked
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+            cargo build --release --locked --target aarch64-apple-darwin
+            cargo build --release --locked --target x86_64-apple-darwin
+            lipo -create \
+              -output target/release/rustnake-universal2 \
+              target/aarch64-apple-darwin/release/rustnake \
+              target/x86_64-apple-darwin/release/rustnake
+          else
+            cargo build --release --locked
+          fi
 
       - name: Package asset and checksum
         id: package
@@ -233,7 +246,8 @@ jobs:
             source="target/release/rustnake.exe"
             asset_name="rustnake-windows-x86_64.exe"
           elif [[ "${RUNNER_OS}" == "macOS" ]]; then
-            asset_name="rustnake-macos-arm64"
+            source="target/release/rustnake-universal2"
+            asset_name="rustnake-macos-universal2"
           fi
 
           if [[ ! -f "$source" ]]; then

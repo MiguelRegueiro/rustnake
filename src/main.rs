@@ -10,7 +10,10 @@ use crossterm::{
 use std::{
     collections::VecDeque,
     io::stdout,
-    sync::mpsc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -29,6 +32,7 @@ use storage::{HighScores, Settings};
 use utils::{Difficulty, Language};
 
 struct TerminalGuard;
+static REPORTED_CONFIG_SAVE_ERROR: AtomicBool = AtomicBool::new(false);
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
@@ -43,7 +47,11 @@ fn persist_config(high_scores: &HighScores, settings: Settings) {
         high_scores: *high_scores,
         settings,
     };
-    let _ = storage::save_config(&config);
+    if let Err(err) = storage::save_config(&config) {
+        if !REPORTED_CONFIG_SAVE_ERROR.swap(true, Ordering::Relaxed) {
+            eprintln!("warning: failed to save rustnake config: {err}");
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
