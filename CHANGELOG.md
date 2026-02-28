@@ -7,6 +7,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
+No changes yet.
+
+### Changed
+No changes yet.
+
+### Fixed
+No changes yet.
+
+## [1.3.0] - 2026-02-27
+
+### Added
 - GitHub Actions release workflow (`.github/workflows/release.yml`) that creates releases from semver tags (`vX.Y.Z`).
 - Automatic release note extraction from `CHANGELOG.md` for the tagged version, with hard validation that a matching changelog section exists.
 
