@@ -7,13 +7,24 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
-No changes yet.
+- New typed render request APIs for menu screens:
+  - `render::MenuRenderRequest`
+  - `render::HighScoresRenderRequest`
+- New `render::clear_for_menu_entry()` helper to enforce a clean screen transition from gameplay into menus.
 
 ### Changed
-No changes yet.
+- Menu/high-scores redraw internals were refactored to use structured render contexts (`Rect`, texture context, row context) and bounded redraw regions.
+- Menu static-frame caching now avoids rebuilding owned key data on every selection move by comparing against a borrowed static view first.
+- Gameplay screen styling was aligned with menu styling:
+  - board border now uses the menu accent tone
+  - HUD lines now use menu title/subtitle/hint typography
+  - game-over popup now uses the same panel border/text style system as menus
+- Menu background rendering is now fully clean (no texture speckle noise).
 
 ### Fixed
-No changes yet.
+- Fixed menu transition artifacts when returning from gameplay/game-over (for example pressing `ENTER`/`SPACE`): stale gameplay content is now cleared before menu rendering.
+- Fixed stale side fragments when switching between menu screens with different panel widths (for example High Scores -> Main Menu) by clearing/redrawing the union of previous and current menu redraw regions.
+- Fixed rare single-dot background artifact in menu space on some terminals.
 
 ## [1.4.0] - 2026-02-28
 

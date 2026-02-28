@@ -90,6 +90,8 @@ fn show_menu(
     selected_difficulty: &mut Difficulty,
     high_scores: &mut HighScores,
 ) -> Option<Difficulty> {
+    render::clear_for_menu_entry();
+
     let mut screen = MenuScreen::Main;
     let mut main_selected = 0usize;
     let mut difficulty_selected = difficulty_to_index(*selected_difficulty);
@@ -109,13 +111,13 @@ fn show_menu(
         match layout_check {
             Ok(_) => {
                 if matches!(screen, MenuScreen::HighScores) {
-                    render::draw_high_scores_menu(
+                    render::draw_high_scores_menu(render::HighScoresRenderRequest {
                         high_scores,
-                        term_size.0,
-                        term_size.1,
-                        ui_language,
-                        settings.ui_compact,
-                    );
+                        term_width: term_size.0,
+                        term_height: term_size.1,
+                        language: ui_language,
+                        compact: settings.ui_compact,
+                    });
                 } else {
                     let (screen_tag, title, subtitle, options, selected, danger_option) =
                         match screen {
@@ -253,18 +255,18 @@ fn show_menu(
                             ),
                             MenuScreen::HighScores => unreachable!(),
                         };
-                    render::draw_menu(
+                    render::draw_menu(render::MenuRenderRequest {
                         screen_tag,
                         title,
-                        subtitle.as_deref(),
-                        &options,
-                        selected,
+                        subtitle: subtitle.as_deref(),
+                        options: &options,
+                        selected_option: selected,
                         danger_option,
-                        term_size.0,
-                        term_size.1,
-                        ui_language,
-                        settings.ui_compact,
-                    );
+                        term_width: term_size.0,
+                        term_height: term_size.1,
+                        language: ui_language,
+                        compact: settings.ui_compact,
+                    });
                 }
             }
             Err(size_check) => render::draw_size_warning(size_check, ui_language),
