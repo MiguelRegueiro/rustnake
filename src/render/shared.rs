@@ -203,3 +203,79 @@ pub(crate) fn clear_rect(rect: Rect) {
         print!("\x1b[{};{}H{}", y, rect.start_x, blank);
     }
 }
+
+pub(crate) fn clip_rect_to_bounds(
+    rect: Rect,
+    bounds_width: u16,
+    bounds_height: u16,
+) -> Option<Rect> {
+    if bounds_width == 0 || bounds_height == 0 {
+        return None;
+    }
+
+    // When a resize shrinks the terminal, cached redraw regions can exceed the
+    // visible area; clamp to avoid wrap-around artifacts on some terminals.
+    if rect.start_x > bounds_width
+        || rect.start_y > bounds_height
+        || rect.end_x == 0
+        || rect.end_y == 0
+    {
+        return None;
+    }
+
+    let start_x = rect.start_x.max(1).min(bounds_width);
+    let end_x = rect.end_x.max(start_x).min(bounds_width);
+    let start_y = rect.start_y.max(1).min(bounds_height);
+    let end_y = rect.end_y.max(start_y).min(bounds_height);
+
+    Some(Rect {
+        start_x,
+        end_x,
+        start_y,
+        end_y,
+    })
+}
+
+pub(crate) fn clear_rect_clipped(rect: Rect, bounds_width: u16, bounds_height: u16) {
+    if let Some(clipped) = clip_rect_to_bounds(rect, bounds_width, bounds_height) {
+        clear_rect(clipped);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clip_rect_clamps_to_terminal_bounds() {
+        let rect = Rect {
+            start_x: 10,
+            end_x: 140,
+            start_y: 3,
+            end_y: 80,
+        };
+
+        let clipped = clip_rect_to_bounds(rect, 120, 40);
+        assert_eq!(
+            clipped,
+            Some(Rect {
+                start_x: 10,
+                end_x: 120,
+                start_y: 3,
+                end_y: 40,
+            })
+        );
+    }
+
+    #[test]
+    fn clip_rect_outside_visible_bounds_returns_none() {
+        let rect = Rect {
+            start_x: 121,
+            end_x: 140,
+            start_y: 10,
+            end_y: 20,
+        };
+
+        assert_eq!(clip_rect_to_bounds(rect, 120, 40), None);
+    }
+}
