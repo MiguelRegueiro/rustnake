@@ -7,6 +7,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
+No changes yet.
+
+### Changed
+No changes yet.
+
+### Fixed
+No changes yet.
+
+## [1.3.1] - 2026-02-28
+
+### Added
 - Binary smoke-check mode (`--smoke-check`) to support non-interactive CI validation of startup and config persistence paths.
 - Release workflow smoke checks on Linux/macOS/Windows to validate built binaries before upload.
 - Release workflow asset metadata validation (checksum + architecture checks across platforms).
