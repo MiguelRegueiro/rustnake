@@ -28,6 +28,12 @@ rustnake
 - Tier 1: Linux (`x86_64-unknown-linux-gnu`) with primary validation coverage.
 - Tier 2: macOS and Windows release binaries with CI smoke checks.
 
+## Binary Trust Policy
+
+- Release binaries are unsigned by default.
+- On first run, macOS may show Gatekeeper prompts and Windows may show SmartScreen prompts.
+- There is currently no planned signing/notarization rollout.
+
 ## Install and Update
 
 ### Linux (Tier 1)

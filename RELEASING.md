@@ -13,6 +13,11 @@ Maintainer-only release checklist for Rustnake.
 
 Release signing is optional. If the required secrets are not configured, signing/notarization steps are skipped and binaries are still published.
 
+Current policy:
+- Signing/notarization is not enabled.
+- No signing/notarization rollout is currently planned.
+- CI signing steps remain in workflow as optional capability only.
+
 - macOS signing + notarization secrets:
   - `MACOS_CERTIFICATE_P12_BASE64`
   - `MACOS_CERTIFICATE_PASSWORD`
