@@ -7,6 +7,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
+No changes yet.
+
+### Changed
+No changes yet.
+
+### Fixed
+No changes yet.
+
+## [1.4.0] - 2026-02-28
+
+### Added
 - README now includes a collapsible `Uninstall` section with Cargo and per-platform binary cleanup commands.
 - Main menu now includes an `All High Scores` view showing saved scores for Easy, Medium, Hard, and Extreme in one screen.
 
