@@ -7,10 +7,11 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
-No changes yet.
+- README now includes a collapsible `Uninstall` section with Cargo and per-platform binary cleanup commands.
 
 ### Changed
-No changes yet.
+- README support and trust policy copy was tightened to reduce redundancy while preserving tier/policy clarity.
+- README now explicitly distinguishes maintainer manual testing scope (Linux) from CI-only validation scope (macOS/Windows binaries).
 
 ### Fixed
 No changes yet.
