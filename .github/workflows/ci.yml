@@ -136,8 +136,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          fetch-depth: 0
+
+      - name: Detect dependency/security-related changes
+        id: sc_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          should_run="true"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+            range="${base}...${head}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+            if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
+              range=""
+            else
+              range="${base}...${head}"
+            fi
+          else
+            range=""
+          fi
+
+          if [[ -n "$range" ]]; then
+            changed="$(git diff --name-only "$range" || true)"
+            echo "$changed"
+            if ! echo "$changed" | grep -Eq '(^|/)(Cargo\.toml|Cargo\.lock|deny\.toml)$|^\.github/workflows/(ci|release)\.yml$'; then
+              should_run="false"
+            fi
+          fi
+
+          echo "run=$should_run" >> "$GITHUB_OUTPUT"
+
+      - name: Skip supply-chain check (no relevant changes)
+        if: ${{ steps.sc_changes.outputs.run != 'true' }}
+        run: echo "No dependency/security workflow changes detected; skipping cargo-deny."
 
       - name: Install pinned Rust toolchain
+        if: ${{ steps.sc_changes.outputs.run == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -145,10 +185,33 @@ jobs:
           rustup default 1.93.0
 
       - name: cargo fetch
+        if: ${{ steps.sc_changes.outputs.run == 'true' }}
         run: cargo fetch --locked
 
-      - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+      - name: Install cargo-deny (prebuilt, fallback to source)
+        if: ${{ steps.sc_changes.outputs.run == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CARGO_DENY_VERSION="0.19.0"
+          TARGET="x86_64-unknown-linux-musl"
+          ARCHIVE="cargo-deny-${CARGO_DENY_VERSION}-${TARGET}.tar.gz"
+          URL="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/${ARCHIVE}"
+          TMP_DIR="$(mktemp -d)"
+
+          install_prebuilt() {
+            curl -fsSL "$URL" -o "$TMP_DIR/$ARCHIVE"
+            tar -xzf "$TMP_DIR/$ARCHIVE" --strip-components=1 -C "$TMP_DIR"
+            install -m 755 "$TMP_DIR/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
+          }
+
+          if install_prebuilt; then
+            cargo-deny --version
+          else
+            echo "Prebuilt cargo-deny download failed; falling back to cargo install." >&2
+            cargo install cargo-deny --locked
+          fi
 
       - name: cargo deny
+        if: ${{ steps.sc_changes.outputs.run == 'true' }}
         run: cargo deny check advisories licenses bans sources

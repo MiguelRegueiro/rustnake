@@ -55,8 +55,10 @@ jobs:
           fi
 
           version="${tag#v}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate tag exists in repository
         shell: bash
@@ -301,9 +303,11 @@ jobs:
             shasum -a 256 "$asset_path" > "$checksum_path"
           fi
 
-          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
-          echo "asset_path=$asset_path" >> "$GITHUB_OUTPUT"
-          echo "checksum_path=$checksum_path" >> "$GITHUB_OUTPUT"
+          {
+            echo "asset_name=$asset_name"
+            echo "asset_path=$asset_path"
+            echo "checksum_path=$checksum_path"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Verify packaged asset metadata (Unix)
         if: ${{ runner.os != 'Windows' }}
