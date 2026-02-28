@@ -58,6 +58,7 @@ fn persist_config(high_scores: &HighScores, settings: Settings) {
 enum MenuScreen {
     Main,
     Difficulty,
+    HighScores,
     Settings,
     Language,
     ResetScoresConfirm,
@@ -92,6 +93,7 @@ fn show_menu(
     let mut screen = MenuScreen::Main;
     let mut main_selected = 0usize;
     let mut difficulty_selected = difficulty_to_index(*selected_difficulty);
+    let mut high_scores_selected = 4usize;
     let mut settings_selected = 0usize;
     let mut language_selected = settings.language.to_index();
     let mut reset_selected = 1usize; // Default to "No"
@@ -117,6 +119,7 @@ fn show_menu(
                                 i18n::menu_difficulty(ui_language),
                                 i18n::difficulty_label(ui_language, *selected_difficulty)
                             ),
+                            i18n::menu_high_scores(ui_language).to_string(),
                             i18n::menu_settings(ui_language).to_string(),
                             i18n::menu_quit(ui_language).to_string(),
                         ],
@@ -164,6 +167,33 @@ fn show_menu(
                         ],
                         settings_selected,
                     ),
+                    MenuScreen::HighScores => (
+                        i18n::high_scores_menu_title(ui_language),
+                        vec![
+                            format!(
+                                "{}: {}",
+                                i18n::difficulty_label(ui_language, Difficulty::Easy),
+                                high_scores.easy
+                            ),
+                            format!(
+                                "{}: {}",
+                                i18n::difficulty_label(ui_language, Difficulty::Medium),
+                                high_scores.medium
+                            ),
+                            format!(
+                                "{}: {}",
+                                i18n::difficulty_label(ui_language, Difficulty::Hard),
+                                high_scores.hard
+                            ),
+                            format!(
+                                "{}: {}",
+                                i18n::difficulty_label(ui_language, Difficulty::Extreme),
+                                high_scores.extreme
+                            ),
+                            i18n::menu_back(ui_language).to_string(),
+                        ],
+                        high_scores_selected,
+                    ),
                     MenuScreen::Language => {
                         let mut options: Vec<String> = Language::ALL
                             .iter()
@@ -199,8 +229,9 @@ fn show_menu(
 
         if let Ok(input_cmd) = rx.recv() {
             let max_index = match screen {
-                MenuScreen::Main => 3,
+                MenuScreen::Main => 4,
                 MenuScreen::Difficulty => 4,
+                MenuScreen::HighScores => 4,
                 MenuScreen::Settings => 4,
                 MenuScreen::Language => Language::ALL.len(),
                 MenuScreen::ResetScoresConfirm => 1,
@@ -214,6 +245,7 @@ fn show_menu(
                     match screen {
                         MenuScreen::Main => main_selected = selection,
                         MenuScreen::Difficulty => difficulty_selected = selection,
+                        MenuScreen::HighScores => high_scores_selected = selection,
                         MenuScreen::Settings => settings_selected = selection,
                         MenuScreen::Language => language_selected = selection,
                         MenuScreen::ResetScoresConfirm => reset_selected = selection,
@@ -224,6 +256,9 @@ fn show_menu(
                     MenuScreen::Difficulty => {
                         difficulty_selected = difficulty_selected.saturating_sub(1)
                     }
+                    MenuScreen::HighScores => {
+                        high_scores_selected = high_scores_selected.saturating_sub(1)
+                    }
                     MenuScreen::Settings => settings_selected = settings_selected.saturating_sub(1),
                     MenuScreen::Language => language_selected = language_selected.saturating_sub(1),
                     MenuScreen::ResetScoresConfirm => {
@@ -231,9 +266,12 @@ fn show_menu(
                     }
                 },
                 GameInput::Direction(utils::Direction::Down) => match screen {
-                    MenuScreen::Main => main_selected = (main_selected + 1).min(3),
+                    MenuScreen::Main => main_selected = (main_selected + 1).min(4),
                     MenuScreen::Difficulty => {
                         difficulty_selected = (difficulty_selected + 1).min(4)
+                    }
+                    MenuScreen::HighScores => {
+                        high_scores_selected = (high_scores_selected + 1).min(4)
                     }
                     MenuScreen::Settings => settings_selected = (settings_selected + 1).min(4),
                     MenuScreen::Language => {
@@ -252,8 +290,12 @@ fn show_menu(
                             difficulty_selected = difficulty_to_index(*selected_difficulty);
                             screen = MenuScreen::Difficulty;
                         }
-                        2 => screen = MenuScreen::Settings,
-                        3 => return None,
+                        2 => {
+                            high_scores_selected = 4;
+                            screen = MenuScreen::HighScores;
+                        }
+                        3 => screen = MenuScreen::Settings,
+                        4 => return None,
                         _ => {}
                     },
                     MenuScreen::Difficulty => {
@@ -297,6 +339,9 @@ fn show_menu(
                             persist_config(high_scores, *settings);
                         }
                         screen = MenuScreen::Settings;
+                    }
+                    MenuScreen::HighScores => {
+                        screen = MenuScreen::Main;
                     }
                 },
                 GameInput::Quit => {

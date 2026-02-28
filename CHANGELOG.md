@@ -8,6 +8,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Added
 - README now includes a collapsible `Uninstall` section with Cargo and per-platform binary cleanup commands.
+- Main menu now includes an `All High Scores` view showing saved scores for Easy, Medium, Hard, and Extreme in one screen.
 
 ### Changed
 - README support and trust policy copy was tightened to reduce redundancy while preserving tier/policy clarity.

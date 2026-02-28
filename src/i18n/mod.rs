@@ -57,6 +57,16 @@ pub fn menu_settings(language: Language) -> &'static str {
     }
 }
 
+pub fn menu_high_scores(language: Language) -> &'static str {
+    match language {
+        Language::En => "High Scores",
+        Language::Es => "Puntuaciones",
+        Language::Ja => "ハイスコア",
+        Language::Pt => "Pontuacoes",
+        Language::Zh => "最高分",
+    }
+}
+
 pub fn menu_quit(language: Language) -> &'static str {
     match language {
         Language::En => "Quit",
@@ -64,6 +74,16 @@ pub fn menu_quit(language: Language) -> &'static str {
         Language::Ja => "終了",
         Language::Pt => "Sair",
         Language::Zh => "退出",
+    }
+}
+
+pub fn high_scores_menu_title(language: Language) -> &'static str {
+    match language {
+        Language::En => "All High Scores",
+        Language::Es => "Todas las puntuaciones",
+        Language::Ja => "すべてのハイスコア",
+        Language::Pt => "Todas as pontuacoes",
+        Language::Zh => "全部最高分",
     }
 }
 
@@ -416,6 +436,7 @@ pub fn minimum_ui_width(language: Language) -> u16 {
     let main_options = [
         menu_play(language).to_string(),
         difficulty_main_line,
+        menu_high_scores(language).to_string(),
         menu_settings(language).to_string(),
         menu_quit(language).to_string(),
     ];
@@ -446,12 +467,37 @@ pub fn minimum_ui_width(language: Language) -> u16 {
         confirm_yes(language).to_string(),
         confirm_no(language).to_string(),
     ];
+    let max_score = u32::MAX.to_string();
+    let high_scores_options = [
+        format!(
+            "{}: {}",
+            difficulty_label(language, Difficulty::Easy),
+            max_score
+        ),
+        format!(
+            "{}: {}",
+            difficulty_label(language, Difficulty::Medium),
+            max_score
+        ),
+        format!(
+            "{}: {}",
+            difficulty_label(language, Difficulty::Hard),
+            max_score
+        ),
+        format!(
+            "{}: {}",
+            difficulty_label(language, Difficulty::Extreme),
+            max_score
+        ),
+        menu_back(language).to_string(),
+    ];
 
     let mut max_width = text_width(controls_text(language))
         .max(text_width(menu_navigation_hint(language)))
         .max(text_width(menu_confirm_hint(language)))
         .max(text_width(small_window_hint(language)))
         .max(text_width(difficulty_menu_title(language)))
+        .max(text_width(high_scores_menu_title(language)))
         .max(text_width(language_popup_title(language)))
         .max(text_width(menu_title(language)))
         .max(text_width(reset_high_scores_title(language)))
@@ -465,6 +511,7 @@ pub fn minimum_ui_width(language: Language) -> u16 {
         .chain(settings_options.iter())
         .chain(language_options.iter())
         .chain(reset_options.iter())
+        .chain(high_scores_options.iter())
     {
         max_width = max_width.max(text_width(option).saturating_add(option_overhead));
     }
@@ -481,10 +528,12 @@ mod tests {
         assert!(!menu_title(language).is_empty());
         assert!(!menu_play(language).is_empty());
         assert!(!menu_difficulty(language).is_empty());
+        assert!(!menu_high_scores(language).is_empty());
         assert!(!menu_settings(language).is_empty());
         assert!(!menu_quit(language).is_empty());
         assert!(!menu_back(language).is_empty());
         assert!(!difficulty_menu_title(language).is_empty());
+        assert!(!high_scores_menu_title(language).is_empty());
         assert!(!menu_navigation_hint(language).is_empty());
         assert!(!menu_confirm_hint(language).is_empty());
         assert!(!language_name(language).is_empty());
