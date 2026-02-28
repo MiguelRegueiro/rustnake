@@ -11,10 +11,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
   - `render::MenuRenderRequest`
   - `render::HighScoresRenderRequest`
 - New `render::clear_for_menu_entry()` helper to enforce a clean screen transition from gameplay into menus.
+- New renderer transition regression tests covering `menu -> high scores -> menu` redraw-region behavior and cache reset on menu entry clear.
 
 ### Changed
 - Menu/high-scores redraw internals were refactored to use structured render contexts (`Rect`, texture context, row context) and bounded redraw regions.
 - Menu static-frame caching now avoids rebuilding owned key data on every selection move by comparing against a borrowed static view first.
+- Renderer architecture was split into focused modules for maintainability:
+  - `src/render/shared.rs` (styles + shared draw helpers)
+  - `src/render/menu.rs` (menu/high-scores rendering + cache logic + snapshots)
+  - `src/render/gameplay.rs` (game board + entity rendering + transitions)
+  - `src/render/hud.rs` (HUD + game-over panel rendering)
+  - `src/render/mod.rs` now acts as module wiring/re-export surface
 - Gameplay screen styling was aligned with menu styling:
   - board border now uses the menu accent tone
   - HUD lines now use menu title/subtitle/hint typography
