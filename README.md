@@ -8,11 +8,18 @@ Classic Snake for the terminal, built in Rust.
 
 ## Install and Update
 
-Recommended path (all platforms via Cargo):
+Recommended for most users: Cargo install (cross-platform).
+
+Install:
 
 ```bash
 cargo install rustnake --locked
 rustnake
+```
+
+Update:
+
+```bash
 cargo install rustnake --locked --force
 ```
 
@@ -45,16 +52,20 @@ cargo install rustnake --locked --force
 Install (release binary):
 
 ```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
-chmod +x rustnake
-./rustnake
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake-linux-x86_64
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64.sha256 -o rustnake-linux-x86_64.sha256
+sha256sum -c rustnake-linux-x86_64.sha256
+chmod +x rustnake-linux-x86_64
+./rustnake-linux-x86_64
 ```
 
 Update (release binary):
 
 ```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
-chmod +x rustnake
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake-linux-x86_64
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64.sha256 -o rustnake-linux-x86_64.sha256
+sha256sum -c rustnake-linux-x86_64.sha256
+chmod +x rustnake-linux-x86_64
 ```
 
 <details>
@@ -63,12 +74,14 @@ chmod +x rustnake
 Install or update (system-wide):
 
 ```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
-chmod +x rustnake
-sudo install -m 755 rustnake /usr/local/bin/rustnake
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake-macos-universal2
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2.sha256 -o rustnake-macos-universal2.sha256
+shasum -a 256 -c rustnake-macos-universal2.sha256
+chmod +x rustnake-macos-universal2
+sudo install -m 755 rustnake-macos-universal2 /usr/local/bin/rustnake
 ```
 
-Run:
+Run (and launch later):
 
 ```bash
 rustnake
@@ -78,11 +91,12 @@ Install or update (no `sudo`, user-only):
 
 ```bash
 mkdir -p "$HOME/.local/bin"
-install -m 755 rustnake "$HOME/.local/bin/rustnake"
+install -m 755 rustnake-macos-universal2 "$HOME/.local/bin/rustnake"
 "$HOME/.local/bin/rustnake"
 ```
 
 On unsigned binaries, macOS may ask for confirmation in Privacy & Security on first run.
+If blocked: open `System Settings -> Privacy & Security` and choose `Open Anyway`.
 </details>
 
 <details>
@@ -92,17 +106,24 @@ Install or update (PowerShell):
 
 ```powershell
 $InstallDir = Join-Path $env:LOCALAPPDATA "Rustnake"
+$ExePath = Join-Path $InstallDir "rustnake.exe"
+$ChecksumPath = Join-Path $InstallDir "rustnake-windows-x86_64.exe.sha256"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe" -OutFile (Join-Path $InstallDir "rustnake.exe")
+Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe" -OutFile $ExePath
+Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe.sha256" -OutFile $ChecksumPath
+$expectedHash = ((Get-Content $ChecksumPath -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+$actualHash = (Get-FileHash -Algorithm SHA256 -Path $ExePath).Hash.ToLowerInvariant()
+if ($actualHash -ne $expectedHash) { throw "Checksum mismatch for rustnake.exe" }
 ```
 
-Run:
+Run (and launch later):
 
 ```powershell
-& (Join-Path $InstallDir "rustnake.exe")
+& (Join-Path $env:LOCALAPPDATA "Rustnake\rustnake.exe")
 ```
 
 On unsigned binaries, Windows may show a SmartScreen prompt on first run.
+If prompted: click `More info` then `Run anyway`.
 </details>
 
 ## Build from source
