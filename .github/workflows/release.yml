@@ -405,12 +405,12 @@ jobs:
           fi
 
       - name: Authenticate with crates.io (Trusted Publisher)
-        if: steps.check_version.outputs.already_published == 'false'
+        if: ${{ steps.check_version.outputs.already_published == 'false' }}
         id: auth
         uses: rust-lang/crates-io-auth-action@63a7064947ceca9989005e118db3a5fecdc9259f
 
       - name: Validate trusted publisher token
-        if: steps.check_version.outputs.already_published == 'false'
+        if: ${{ steps.check_version.outputs.already_published == 'false' }}
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
@@ -423,7 +423,7 @@ jobs:
           fi
 
       - name: Publish crate (idempotent)
-        if: steps.check_version.outputs.already_published == 'false'
+        if: ${{ steps.check_version.outputs.already_published == 'false' }}
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
@@ -451,7 +451,7 @@ jobs:
           exit "$code"
 
       - name: Skip publish (already published)
-        if: steps.check_version.outputs.already_published == 'true'
+        if: ${{ steps.check_version.outputs.already_published == 'true' }}
         run: echo "rustnake ${{ needs.meta.outputs.version }} already exists on crates.io; skipping publish"
 
   publish_release:
