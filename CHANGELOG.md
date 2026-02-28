@@ -7,6 +7,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
+No changes yet.
+
+### Changed
+No changes yet.
+
+### Fixed
+No changes yet.
+
+## [1.5.0] - 2026-02-28
+
+### Added
 - New typed render request APIs for menu screens:
   - `render::MenuRenderRequest`
   - `render::HighScoresRenderRequest`
