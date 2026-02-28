@@ -14,6 +14,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - README support and trust policy copy was tightened to reduce redundancy while preserving tier/policy clarity.
 - README now explicitly distinguishes maintainer manual testing scope (Linux) from CI-only validation scope (macOS/Windows binaries).
 - High-scores menu UX was refined: score rows are no longer selectable, `Back` is the only selectable action, and the screen now uses a compact responsive card layout for all difficulties.
+- Gameplay preview image (`media/rustnakegameplay.webp`) was refreshed to show the new high-scores menu and recompressed to a smaller file size without visible quality loss.
 
 ### Fixed
 No changes yet.
