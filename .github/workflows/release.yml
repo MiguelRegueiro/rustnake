@@ -364,16 +364,40 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Publish release (idempotent)
+      - name: Checkout tag
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+        with:
+          ref: refs/tags/${{ needs.meta.outputs.tag }}
+
+      - name: Build release notes from changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ needs.meta.outputs.version }}"
+          awk -v version="$version" '
+            $0 ~ "^## \\[" version "\\]" {in_section=1; found=1; next}
+            in_section && $0 ~ "^## \\[" {exit}
+            in_section {print}
+            END { if (!found) exit 2 }
+          ' CHANGELOG.md > release_notes.md
+
+      - name: Publish release (self-healing)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
           tag="${{ needs.meta.outputs.tag }}"
+          title="Rustnake $tag"
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag --title "$title" --notes-file release_notes.md
+            exit 0
+          fi
+
           draft_state="$(gh release view "$tag" --json isDraft --jq '.isDraft')"
           if [[ "$draft_state" == "true" ]]; then
-            gh release edit "$tag" --draft=false
+            gh release edit "$tag" --draft=false --title "$title" --notes-file release_notes.md
           else
-            echo "Release $tag is already published; skipping."
+            gh release edit "$tag" --title "$title" --notes-file release_notes.md
           fi
