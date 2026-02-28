@@ -7,12 +7,29 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## [Unreleased]
 
 ### Added
-No changes yet.
+- Binary smoke-check mode (`--smoke-check`) to support non-interactive CI validation of startup and config persistence paths.
+- Release workflow smoke checks on Linux/macOS/Windows to validate built binaries before upload.
+- Release workflow asset metadata validation (checksum + architecture checks across platforms).
+- CI workflow lint job using `actionlint` for GitHub Actions workflow validation.
+- Maintainer release guide moved to a dedicated `RELEASING.md` document.
 
 ### Changed
-No changes yet.
+- README streamlined for install UX with Linux-first flow and explicit support tiers (`Tier 1` Linux, `Tier 2` macOS/Windows).
+- README install/update instructions reorganized by platform, with clearer Windows/macOS secondary paths.
+- README maintainer-focused release operations moved out of user docs and replaced with a link to `RELEASING.md`.
+- Release workflow macOS artifacts now ship as a single universal binary (`rustnake-macos-universal2`).
+- Config persistence paths are now platform-aware:
+  - Linux: `~/.rustnake.toml`
+  - macOS: `~/Library/Application Support/Rustnake/config.toml`
+  - Windows: `%APPDATA%\\Rustnake\\config.toml`
+- Legacy config migration now runs on first load when old config locations are detected.
+- Release signing/notarization steps are now optional and run only when required secrets are configured.
+- Crate metadata description simplified to: `Classic Snake for the terminal, built in Rust.`
 
 ### Fixed
+- Config saves now ensure parent directories exist before writing.
+- Config save failures are no longer silently ignored; a one-time warning is emitted per session.
+- Local cert artifact files are now ignored in Git (`mac_cert.b64`, `notary_key.b64`, `win_cert.b64`) to reduce accidental leaks.
 - Release workflow `publish_crate` now authenticates via `rust-lang/crates-io-auth-action` before `cargo publish`, ensuring Trusted Publisher OIDC tokens are passed correctly.
 - Release workflow finalization step is now idempotent: it only toggles draft releases to published and cleanly no-ops if already published.
 - Crates publish step is now idempotent and clearer on failures: explicit token validation plus graceful success when the target version is already published.

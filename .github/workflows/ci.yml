@@ -21,6 +21,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow_lint:
+    name: Workflow Lint (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v go >/dev/null 2>&1; then
+            echo "error: Go toolchain not found on runner." >&2
+            exit 1
+          fi
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.8
+
+      - name: Run actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$(go env GOPATH)/bin/actionlint" -color
+
   verify:
     name: Verify (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

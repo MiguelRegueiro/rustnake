@@ -8,12 +8,53 @@ Classic Snake for the terminal, built in Rust.
 
 ## Quick Start
 
+Linux (Tier 1 support):
+
+```bash
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
+chmod +x rustnake
+./rustnake
+```
+
+Cargo alternative:
+
 ```bash
 cargo install rustnake --locked
 rustnake
 ```
 
-Update to the latest published version:
+## Support Tiers
+
+- Tier 1: Linux (`x86_64-unknown-linux-gnu`) with primary validation coverage.
+- Tier 2: macOS and Windows release binaries with CI smoke checks.
+
+## Install and Update
+
+### Linux (Tier 1)
+
+Install (release binary):
+
+```bash
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
+chmod +x rustnake
+./rustnake
+```
+
+Install (Cargo):
+
+```bash
+cargo install rustnake --locked
+rustnake
+```
+
+Update (release binary):
+
+```bash
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
+chmod +x rustnake
+```
+
+Update (Cargo):
 
 ```bash
 cargo install rustnake --locked --force
@@ -21,19 +62,38 @@ cargo install rustnake --locked --force
 
 `--locked` keeps dependency resolution reproducible.
 
-## Install Options
+### macOS (Tier 2)
 
-### crates.io (recommended)
+Install (system-wide):
 
 ```bash
-cargo install rustnake --locked
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
+chmod +x rustnake
+sudo install -m 755 rustnake /usr/local/bin/rustnake
+rustnake
 ```
 
-By default, Cargo installs binaries to `~/.cargo/bin` (or your configured Cargo bin directory).
+Update (system-wide):
 
-### Prebuilt binaries (GitHub Releases)
+```bash
+curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
+chmod +x rustnake
+sudo install -m 755 rustnake /usr/local/bin/rustnake
+```
 
-Windows (PowerShell):
+Install or update (no `sudo`, user-only):
+
+```bash
+mkdir -p "$HOME/.local/bin"
+install -m 755 rustnake "$HOME/.local/bin/rustnake"
+"$HOME/.local/bin/rustnake"
+```
+
+If unsigned, macOS may ask for confirmation in Privacy & Security on first run.
+
+### Windows (Tier 2)
+
+Install (PowerShell):
 
 ```powershell
 $InstallDir = Join-Path $env:LOCALAPPDATA "Rustnake"
@@ -42,46 +102,16 @@ Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/late
 & (Join-Path $InstallDir "rustnake.exe")
 ```
 
-Update:
+Update (PowerShell):
 
 ```powershell
 $InstallDir = Join-Path $env:LOCALAPPDATA "Rustnake"
 Invoke-WebRequest -Uri "https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-windows-x86_64.exe" -OutFile (Join-Path $InstallDir "rustnake.exe")
 ```
 
-macOS:
+On unsigned binaries, Windows may show a SmartScreen prompt on first run.
 
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
-chmod +x rustnake
-sudo install -m 755 rustnake /usr/local/bin/rustnake
-rustnake
-```
-
-Update:
-
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-macos-universal2 -o rustnake
-chmod +x rustnake
-sudo install -m 755 rustnake /usr/local/bin/rustnake
-```
-
-Linux:
-
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
-chmod +x rustnake
-./rustnake
-```
-
-Update:
-
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
-chmod +x rustnake
-```
-
-### Build from source
+## Build from source
 
 ```bash
 git clone https://github.com/MiguelRegueiro/rustnake.git
@@ -150,13 +180,7 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 cargo test --all-targets --all-features --locked
 ```
 
-## Release Operations
-
-1. Ensure all quality commands pass locally.
-2. Update [`CHANGELOG.md`](CHANGELOG.md).
-3. Commit and push to `main`.
-4. Create and push a semver tag (`vX.Y.Z`).
-5. GitHub Actions release workflow validates the tag/changelog, publishes GitHub release notes from `CHANGELOG.md`, uploads platform binaries, and publishes to crates.io via Trusted Publisher.
+Maintainer release process: [RELEASING.md](RELEASING.md)
 
 ## Troubleshooting
 
