@@ -312,11 +312,46 @@ jobs:
         id: auth
         uses: rust-lang/crates-io-auth-action@63a7064947ceca9989005e118db3a5fecdc9259f
 
-      - name: Publish crate
+      - name: Validate trusted publisher token
         if: steps.check_version.outputs.already_published == 'false'
-        run: cargo publish --locked
+        shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "Trusted Publisher token was not provided by crates-io-auth-action." >&2
+            echo "Verify crates.io Trusted Publisher settings for owner/repo/workflow/environment." >&2
+            exit 1
+          fi
+
+      - name: Publish crate (idempotent)
+        if: steps.check_version.outputs.already_published == 'false'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set +e
+          output="$(cargo publish --locked 2>&1)"
+          code="$?"
+          set -e
+          echo "$output"
+
+          if [[ "$code" -eq 0 ]]; then
+            exit 0
+          fi
+
+          if echo "$output" | grep -Eqi "already (uploaded|published|exists)"; then
+            echo "Version appears to be already published; treating as success."
+            exit 0
+          fi
+
+          if curl -fsSL "https://crates.io/api/v1/crates/rustnake/${{ needs.meta.outputs.version }}" >/dev/null 2>&1; then
+            echo "Version is present on crates.io after failed publish attempt; treating as success."
+            exit 0
+          fi
+
+          exit "$code"
 
       - name: Skip publish (already published)
         if: steps.check_version.outputs.already_published == 'true'
