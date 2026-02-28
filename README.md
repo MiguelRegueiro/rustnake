@@ -6,51 +6,24 @@ Classic Snake for the terminal, built in Rust.
 
 ![Rustnake Gameplay](media/rustnakegameplay.webp)
 
-## Quick Start
+## Install and Update
 
-Linux binary (Tier 1 support):
-
-```bash
-curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
-chmod +x rustnake
-./rustnake
-```
-
-Cargo (all platforms):
+Recommended path (all platforms via Cargo):
 
 ```bash
 cargo install rustnake --locked
 rustnake
+cargo install rustnake --locked --force
 ```
 
-## Binary Support Tiers
+`--locked` keeps dependency resolution reproducible.
+
+### Binary Support Tiers
 
 - Tiers classify prebuilt release binaries only.
 - Tier 1 binary: Linux (`x86_64-unknown-linux-gnu`) is fully supported.
 - Tier 2 binaries: macOS and Windows are convenience distributions with CI smoke checks.
 - Cargo install is supported across Linux/macOS/Windows and is outside binary tier classification.
-
-## Binary Trust Policy
-
-- Tier 2 binaries (macOS/Windows) are intentionally unsigned as project policy.
-- Linux remains the primary supported path.
-- On first run, macOS may show Gatekeeper prompts and Windows may show SmartScreen prompts.
-- There is currently no planned signing/notarization rollout.
-
-## Install and Update
-
-Cargo (all platforms, outside binary tier classification):
-
-```bash
-cargo install rustnake --locked
-rustnake
-```
-
-```bash
-cargo install rustnake --locked --force
-```
-
-`--locked` keeps dependency resolution reproducible.
 
 | Platform | Tier | Support |
 | --- | --- | --- |
@@ -58,7 +31,16 @@ cargo install rustnake --locked --force
 | macOS | Tier 2 | Convenience binary (unsigned) |
 | Windows | Tier 2 | Convenience binary (unsigned) |
 
-### Linux (Tier 1)
+### Binary Trust Policy
+
+- Tier 2 binaries (macOS/Windows) are intentionally unsigned as project policy.
+- Linux remains the primary supported binary path.
+- On first run, macOS may show Gatekeeper prompts and Windows may show SmartScreen prompts.
+- There is currently no planned signing/notarization rollout.
+
+### Binary Install and Update
+
+#### Linux (Tier 1)
 
 Install (release binary):
 
@@ -100,7 +82,7 @@ install -m 755 rustnake "$HOME/.local/bin/rustnake"
 "$HOME/.local/bin/rustnake"
 ```
 
-If unsigned, macOS may ask for confirmation in Privacy & Security on first run.
+On unsigned binaries, macOS may ask for confirmation in Privacy & Security on first run.
 </details>
 
 <details>
