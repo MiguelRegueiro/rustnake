@@ -385,6 +385,49 @@ pub fn draw_high_scores_menu(
 ) {
     print!("\x1b[2J\x1b[H");
 
+    let entries = [
+        (Difficulty::Easy, high_scores.easy, "I", "\x1b[36m"),
+        (Difficulty::Medium, high_scores.medium, "II", "\x1b[32m"),
+        (Difficulty::Hard, high_scores.hard, "III", "\x1b[33m"),
+        (Difficulty::Extreme, high_scores.extreme, "IV", "\x1b[31m"),
+    ];
+
+    let best_label = i18n::info_best_label(language);
+    let max_label_width = entries
+        .iter()
+        .map(|(difficulty, _, _, _)| display_width(i18n::difficulty_label(language, *difficulty)))
+        .max()
+        .unwrap_or(1);
+    let max_score_width = entries
+        .iter()
+        .map(|(_, score, _, _)| display_width(&score.to_string()))
+        .max()
+        .unwrap_or(1);
+    let max_badge_width = entries
+        .iter()
+        .map(|(_, _, badge, _)| display_width(badge))
+        .max()
+        .unwrap_or(1);
+
+    let card_inner_width = (max_label_width
+        .max(max_score_width)
+        .max(max_badge_width)
+        .max(display_width(best_label))
+        + 2)
+    .clamp(10, 18);
+    let card_inner_height = 4u16;
+    let card_width = card_inner_width + 2;
+    let card_height = card_inner_height + 2;
+    let gap = 2u16;
+    let row_gap = 1u16;
+
+    let total_horizontal_width = 4 * card_width + 3 * gap;
+    let use_two_rows = total_horizontal_width > term_width.saturating_sub(2);
+    let rows = if use_two_rows { 2u16 } else { 1u16 };
+    let columns = if use_two_rows { 2u16 } else { 4u16 };
+    let cards_block_height = rows * card_height + (rows - 1) * row_gap;
+    let menu_height = cards_block_height + 7;
+
     let title = i18n::high_scores_menu_title(language);
     let max_title_inner = term_width.saturating_sub(2).max(1);
     let title_width = display_width(title).min(max_title_inner);
@@ -395,7 +438,6 @@ pub fn draw_high_scores_menu(
     let title_box_width = title_inner_width + 2;
     let title_start_x = center_start(term_width, title_box_width);
 
-    let menu_height = 14u16;
     let menu_start_y = center_start(term_height, menu_height);
 
     print!(
@@ -419,91 +461,59 @@ pub fn draw_high_scores_menu(
         "─".repeat((title_box_width - 2) as usize)
     );
 
-    let entries = [
-        (Difficulty::Easy, high_scores.easy, "I"),
-        (Difficulty::Medium, high_scores.medium, "II"),
-        (Difficulty::Hard, high_scores.hard, "III"),
-        (Difficulty::Extreme, high_scores.extreme, "IV"),
-    ];
-
-    let max_label_width = entries
-        .iter()
-        .map(|(difficulty, _, _)| display_width(i18n::difficulty_label(language, *difficulty)))
-        .max()
-        .unwrap_or(1);
-    let max_score_width = entries
-        .iter()
-        .map(|(_, score, _)| display_width(&score.to_string()))
-        .max()
-        .unwrap_or(1);
-    let rank_width = entries
-        .iter()
-        .map(|(_, _, rank)| display_width(rank))
-        .max()
-        .unwrap_or(1);
-
-    let card_inner_width = (max_label_width.max(max_score_width).max(rank_width) + 2).clamp(8, 16);
-    let card_width = card_inner_width + 2;
-    let gap = 2u16;
     let cards_y = menu_start_y + 4;
+    let draw_card =
+        |x: u16, y: u16, difficulty: Difficulty, score: u32, badge: &str, color: &str| {
+            let label = i18n::difficulty_label(language, difficulty);
+            let score_text = score.to_string();
 
-    let total_horizontal_width = 4 * card_width + 3 * gap;
-    let use_two_rows = total_horizontal_width > term_width.saturating_sub(2);
-
-    let draw_card = |x: u16, y: u16, difficulty: Difficulty, score: u32, rank: &str| {
-        let label = i18n::difficulty_label(language, difficulty);
-        let score_text = score.to_string();
-
-        print!(
-            "\x1b[{};{}H┌{}┐",
-            y,
-            x,
-            "─".repeat(card_inner_width as usize)
-        );
-        for line_y in (y + 1)..=(y + 3) {
             print!(
-                "\x1b[{};{}H│{}│",
-                line_y,
+                "\x1b[{};{}H┌{}┐",
+                y,
                 x,
-                " ".repeat(card_inner_width as usize)
+                "─".repeat(card_inner_width as usize)
             );
-        }
-        print!(
-            "\x1b[{};{}H└{}┘",
-            y + 4,
-            x,
-            "─".repeat(card_inner_width as usize)
-        );
+            for line_y in (y + 1)..=(y + card_inner_height) {
+                print!(
+                    "\x1b[{};{}H│{}│",
+                    line_y,
+                    x,
+                    " ".repeat(card_inner_width as usize)
+                );
+            }
+            print!(
+                "\x1b[{};{}H└{}┘",
+                y + card_inner_height + 1,
+                x,
+                "─".repeat(card_inner_width as usize)
+            );
 
-        let rank_x = x + 1 + (card_inner_width.saturating_sub(display_width(rank)) / 2);
-        print_clipped(y + 1, rank_x, rank, card_inner_width);
+            let badge_x = x + 1 + (card_inner_width.saturating_sub(display_width(badge)) / 2);
+            print!("\x1b[{};{}H{}", y + 1, badge_x, color);
+            print_clipped(y + 1, badge_x, badge, card_inner_width);
+            print!("\x1b[0m");
 
-        let label_x = x + 1 + (card_inner_width.saturating_sub(display_width(label)) / 2);
-        print_clipped(y + 2, label_x, label, card_inner_width);
+            let label_x = x + 1 + (card_inner_width.saturating_sub(display_width(label)) / 2);
+            print_clipped(y + 2, label_x, label, card_inner_width);
 
-        let score_x = x + 1 + (card_inner_width.saturating_sub(display_width(&score_text)) / 2);
-        print_clipped(y + 3, score_x, &score_text, card_inner_width);
-    };
+            let best_x = x + 1 + (card_inner_width.saturating_sub(display_width(best_label)) / 2);
+            print_clipped(y + 3, best_x, best_label, card_inner_width);
 
-    let back_y = if use_two_rows {
-        let row_width = 2 * card_width + gap;
-        let row_start_x = center_start(term_width, row_width);
-        for (index, (difficulty, score, rank)) in entries.iter().enumerate() {
-            let row = (index / 2) as u16;
-            let col = (index % 2) as u16;
-            let x = row_start_x + col * (card_width + gap);
-            let y = cards_y + row * 6;
-            draw_card(x, y, *difficulty, *score, rank);
-        }
-        cards_y + 12
-    } else {
-        let cards_start_x = center_start(term_width, total_horizontal_width);
-        for (index, (difficulty, score, rank)) in entries.iter().enumerate() {
-            let x = cards_start_x + index as u16 * (card_width + gap);
-            draw_card(x, cards_y, *difficulty, *score, rank);
-        }
-        cards_y + 6
-    };
+            let score_x = x + 1 + (card_inner_width.saturating_sub(display_width(&score_text)) / 2);
+            print_clipped(y + 4, score_x, &score_text, card_inner_width);
+        };
+
+    let row_width = columns * card_width + (columns - 1) * gap;
+    let row_start_x = center_start(term_width, row_width);
+    for (index, (difficulty, score, badge, color)) in entries.iter().enumerate() {
+        let row = (index as u16) / columns;
+        let col = (index as u16) % columns;
+        let x = row_start_x + col * (card_width + gap);
+        let y = cards_y + row * (card_height + row_gap);
+        draw_card(x, y, *difficulty, *score, badge, color);
+    }
+
+    let back_y = cards_y + cards_block_height + 1;
 
     draw_centered_line(
         back_y,
