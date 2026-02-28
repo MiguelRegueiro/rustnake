@@ -13,7 +13,8 @@ No changes yet.
 No changes yet.
 
 ### Fixed
-No changes yet.
+- Fixed Windows menu rendering corruption during aggressive terminal resize (overlapping/duplicated panels and stale fragments).
+- Fixed menu redraw clearing to stay within current terminal bounds after resize transitions.
 
 ## [1.5.1] - 2026-02-28
 
