@@ -214,14 +214,24 @@ jobs:
         with:
           ref: refs/tags/${{ needs.meta.outputs.tag }}
 
-      - name: Install pinned Rust toolchain
+      - name: Install pinned Rust toolchain (Unix)
+        if: ${{ runner.os != 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
           rustup toolchain install 1.93.0 --profile minimal
           rustup default 1.93.0
 
-      - name: Build release binary
+      - name: Install pinned Rust toolchain (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup default 1.93.0
+
+      - name: Build release binary (Unix)
+        if: ${{ runner.os != 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -236,6 +246,13 @@ jobs:
           else
             cargo build --release --locked
           fi
+
+      - name: Build release binary (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo build --release --locked
 
       - name: Smoke-check binary startup and config path (Unix)
         if: ${{ runner.os != 'Windows' }}
@@ -273,17 +290,15 @@ jobs:
             throw "Smoke-check did not create expected config file at: $expectedPath"
           }
 
-      - name: Package asset and checksum
-        id: package
+      - name: Package asset and checksum (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        id: package_unix
         shell: bash
         run: |
           set -euo pipefail
           source="target/release/rustnake"
           asset_name="rustnake-linux-x86_64"
-          if [[ "${RUNNER_OS}" == "Windows" ]]; then
-            source="target/release/rustnake.exe"
-            asset_name="rustnake-windows-x86_64.exe"
-          elif [[ "${RUNNER_OS}" == "macOS" ]]; then
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
             source="target/release/rustnake-universal2"
             asset_name="rustnake-macos-universal2"
           fi
@@ -309,12 +324,36 @@ jobs:
             echo "checksum_path=$checksum_path"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Package asset and checksum (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        id: package_windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $assetName = "rustnake-windows-x86_64.exe"
+          $source = "target/release/rustnake.exe"
+
+          if (-not (Test-Path $source)) {
+            throw "Missing build artifact: $source"
+          }
+
+          $assetPath = Join-Path $env:RUNNER_TEMP $assetName
+          Copy-Item -Path $source -Destination $assetPath -Force
+
+          $checksumPath = Join-Path $env:RUNNER_TEMP "$assetName.sha256"
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $assetPath).Hash.ToLowerInvariant()
+          "$hash  $assetPath" | Out-File -FilePath $checksumPath -Encoding ascii
+
+          "asset_name=$assetName" >> $env:GITHUB_OUTPUT
+          "asset_path=$assetPath" >> $env:GITHUB_OUTPUT
+          "checksum_path=$checksumPath" >> $env:GITHUB_OUTPUT
+
       - name: Verify packaged asset metadata (Unix)
         if: ${{ runner.os != 'Windows' }}
         shell: bash
         env:
-          ASSET_PATH: ${{ steps.package.outputs.asset_path }}
-          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+          ASSET_PATH: ${{ steps.package_unix.outputs.asset_path }}
+          CHECKSUM_PATH: ${{ steps.package_unix.outputs.checksum_path }}
         run: |
           set -euo pipefail
 
@@ -337,8 +376,8 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
         env:
-          ASSET_PATH: ${{ steps.package.outputs.asset_path }}
-          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+          ASSET_PATH: ${{ steps.package_windows.outputs.asset_path }}
+          CHECKSUM_PATH: ${{ steps.package_windows.outputs.checksum_path }}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -356,15 +395,31 @@ jobs:
             throw ("Unexpected PE machine type: 0x{0:X}" -f $machine)
           }
 
-      - name: Upload asset and checksum to release
+      - name: Upload asset and checksum to release (Unix)
+        if: ${{ runner.os != 'Windows' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
           gh release upload "${{ needs.meta.outputs.tag }}" \
-            "${{ steps.package.outputs.asset_path }}#${{ steps.package.outputs.asset_name }}" \
-            "${{ steps.package.outputs.checksum_path }}#${{ steps.package.outputs.asset_name }}.sha256" \
+            "${{ steps.package_unix.outputs.asset_path }}#${{ steps.package_unix.outputs.asset_name }}" \
+            "${{ steps.package_unix.outputs.checksum_path }}#${{ steps.package_unix.outputs.asset_name }}.sha256" \
+            --clobber
+
+      - name: Upload asset and checksum to release (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET_PATH: ${{ steps.package_windows.outputs.asset_path }}
+          ASSET_NAME: ${{ steps.package_windows.outputs.asset_name }}
+          CHECKSUM_PATH: ${{ steps.package_windows.outputs.checksum_path }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          gh release upload "${{ needs.meta.outputs.tag }}" `
+            "$($env:ASSET_PATH)#$($env:ASSET_NAME)" `
+            "$($env:CHECKSUM_PATH)#$($env:ASSET_NAME).sha256" `
             --clobber
 
   publish_crate:
