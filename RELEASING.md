@@ -22,13 +22,18 @@ Maintainer-only release checklist for Rustnake.
    - `cargo check --all-targets --all-features --locked`
    - `cargo clippy --all-targets --all-features --locked -- -D warnings`
    - `cargo test --all-targets --all-features --locked`
-2. Update `CHANGELOG.md` with the release section.
-3. Bump crate version in `Cargo.toml`.
+2. Prepare `CHANGELOG.md` for release:
+   - move current `Unreleased` notes into `## [X.Y.Z] - YYYY-MM-DD`
+   - reset `Unreleased` back to `No changes yet.` for `Added` / `Changed` / `Fixed`
+3. Bump crate version in:
+   - `Cargo.toml`
+   - `Cargo.lock` (root `rustnake` package entry)
 4. Commit and push to `main`.
-5. Create and push a semver tag:
+5. Wait for CI on `main` to pass before tagging.
+6. Create and push a semver tag:
    - `git tag vX.Y.Z`
    - `git push origin vX.Y.Z`
-6. Confirm release workflow success (`.github/workflows/release.yml`):
+7. Confirm release workflow success (`.github/workflows/release.yml`):
    - tag/changelog/version validation
    - cross-platform binary build/upload
    - crates.io publish (idempotent)
@@ -38,4 +43,5 @@ Maintainer-only release checklist for Rustnake.
 
 - Verify release assets and checksums exist on GitHub Releases.
 - Verify crate version is visible on crates.io.
+- Verify GitHub Release notes for `vX.Y.Z` match the `CHANGELOG.md` section for that version.
 - Confirm README install commands still match current asset names.
