@@ -329,10 +329,16 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Publish release
+      - name: Publish release (idempotent)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release edit "${{ needs.meta.outputs.tag }}" --draft=false
+          tag="${{ needs.meta.outputs.tag }}"
+          draft_state="$(gh release view "$tag" --json isDraft --jq '.isDraft')"
+          if [[ "$draft_state" == "true" ]]; then
+            gh release edit "$tag" --draft=false
+          else
+            echo "Release $tag is already published; skipping."
+          fi

@@ -14,6 +14,7 @@ No changes yet.
 
 ### Fixed
 - Release workflow `publish_crate` now authenticates via `rust-lang/crates-io-auth-action` before `cargo publish`, ensuring Trusted Publisher OIDC tokens are passed correctly.
+- Release workflow finalization step is now idempotent: it only toggles draft releases to published and cleanly no-ops if already published.
 
 ## [1.3.0] - 2026-02-27
 
