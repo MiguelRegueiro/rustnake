@@ -28,6 +28,9 @@ No changes yet.
 - README streamlined for install UX with Linux-first flow and explicit support tiers (`Tier 1` Linux, `Tier 2` macOS/Windows).
 - README install/update instructions reorganized by platform, with clearer Windows/macOS secondary paths.
 - README maintainer-focused release operations moved out of user docs and replaced with a link to `RELEASING.md`.
+- README install flow is now cargo-first and cross-platform, with binary tiers documented separately for prebuilt assets.
+- README Tier 2 binary sections are now collapsible for faster scanning.
+- README binary install instructions now include checksum verification and explicit first-run prompt actions for macOS/Windows.
 - Release workflow macOS artifacts now ship as a single universal binary (`rustnake-macos-universal2`).
 - Config persistence paths are now platform-aware:
   - Linux: `~/.rustnake.toml`
@@ -35,12 +38,15 @@ No changes yet.
   - Windows: `%APPDATA%\\Rustnake\\config.toml`
 - Legacy config migration now runs on first load when old config locations are detected.
 - Release workflow signing/notarization logic was removed to match the unsigned-binaries project policy.
+- CI supply-chain job now skips `cargo deny` when dependency/security files are unchanged, and prefers a prebuilt `cargo-deny` binary with source-install fallback.
 - Crate metadata description simplified to: `Classic Snake for the terminal, built in Rust.`
 
 ### Fixed
 - Config saves now ensure parent directories exist before writing.
 - Config save failures are no longer silently ignored; a one-time warning is emitted per session.
 - Local cert artifact files are now ignored in Git (`mac_cert.b64`, `notary_key.b64`, `win_cert.b64`) to reduce accidental leaks.
+- CI workflow lint job now bootstraps Go when missing before installing `actionlint`.
+- Release workflow shell lint issues were fixed by consolidating `GITHUB_OUTPUT` writes.
 - Release workflow `publish_crate` now authenticates via `rust-lang/crates-io-auth-action` before `cargo publish`, ensuring Trusted Publisher OIDC tokens are passed correctly.
 - Release workflow finalization step is now idempotent: it only toggles draft releases to published and cleanly no-ops if already published.
 - Crates publish step is now idempotent and clearer on failures: explicit token validation plus graceful success when the target version is already published.
