@@ -67,6 +67,7 @@ pub struct Settings {
     pub language: Language,
     pub pause_on_focus_loss: bool,
     pub sound_on: bool,
+    pub ui_compact: bool,
     pub default_difficulty: Difficulty,
 }
 
@@ -76,6 +77,7 @@ impl Default for Settings {
             language: Language::En,
             pause_on_focus_loss: true,
             sound_on: true,
+            ui_compact: false,
             default_difficulty: Difficulty::Medium,
         }
     }
@@ -349,6 +351,7 @@ language = "en"
         assert_eq!(config.settings.language, Language::En);
         assert!(config.settings.pause_on_focus_loss);
         assert!(config.settings.sound_on);
+        assert!(!config.settings.ui_compact);
         assert_eq!(config.settings.default_difficulty, Difficulty::Medium);
         assert!(migrated);
     }
@@ -392,6 +395,7 @@ language = "pt"
         assert_eq!(config.settings.language, Language::Pt);
         assert!(config.settings.pause_on_focus_loss);
         assert!(config.settings.sound_on);
+        assert!(!config.settings.ui_compact);
         assert_eq!(config.settings.default_difficulty, Difficulty::Medium);
         assert!(!migrated);
     }
@@ -409,6 +413,7 @@ language = "pt"
                 language: Language::Ja,
                 pause_on_focus_loss: false,
                 sound_on: true,
+                ui_compact: true,
                 default_difficulty: Difficulty::Extreme,
             },
         };
@@ -424,6 +429,7 @@ language = "pt"
         assert!(serialized.contains("language = \"ja\""));
         assert!(serialized.contains("pause_on_focus_loss = false"));
         assert!(serialized.contains("sound_on = true"));
+        assert!(serialized.contains("ui_compact = true"));
         assert!(serialized.contains("default_difficulty = \"extreme\""));
     }
 
@@ -449,6 +455,7 @@ language = "es"
         assert_eq!(loaded.settings.language, Language::Es);
         assert!(loaded.settings.pause_on_focus_loss);
         assert!(loaded.settings.sound_on);
+        assert!(!loaded.settings.ui_compact);
         assert_eq!(loaded.settings.default_difficulty, Difficulty::Medium);
 
         let rewritten = fs::read_to_string(&path).unwrap();

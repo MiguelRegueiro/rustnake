@@ -8,17 +8,88 @@ use crate::storage::HighScores;
 use crate::utils::Difficulty;
 use crate::utils::Language;
 use std::io::Write;
+use std::sync::{Mutex, OnceLock};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const ANSI_RESET: &str = "\x1b[0m";
 const STYLE_MENU_BORDER: &str = "\x1b[38;2;89;138;207m";
+const STYLE_MENU_LOGO: &str = "\x1b[1;38;2;219;224;232m";
 const STYLE_MENU_TITLE: &str = "\x1b[1;97m";
 const STYLE_MENU_SUBTITLE: &str = "\x1b[2;37m";
 const STYLE_MENU_HINT: &str = "\x1b[2;37m";
 const STYLE_MENU_OPTION: &str = "\x1b[97m";
 const STYLE_MENU_OPTION_DANGER: &str = "\x1b[91m";
-const STYLE_MENU_OPTION_SELECTED: &str = "\x1b[1;38;2;255;255;255;48;2;89;138;207m";
+const STYLE_MENU_OPTION_SELECTED_MID: &str = "\x1b[1;38;2;255;255;255;48;2;89;138;207m";
 const STYLE_MENU_OPTION_SELECTED_DANGER: &str = "\x1b[1;97;41m";
+const STYLE_MENU_TEXTURE: &str = "\x1b[38;2;96;103;117m";
+
+const MENU_LOGO: &str = "Rustnake";
+
+#[derive(Clone, PartialEq, Eq)]
+struct MenuStaticKey {
+    screen_tag: String,
+    title: String,
+    subtitle: Option<String>,
+    options: Vec<String>,
+    danger_option: Option<usize>,
+    term_width: u16,
+    term_height: u16,
+    language: Language,
+    compact: bool,
+}
+
+#[derive(Default)]
+struct MenuRenderCache {
+    key: Option<MenuStaticKey>,
+    selected_option: Option<usize>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct HighScoresStaticKey {
+    high_scores: HighScores,
+    term_width: u16,
+    term_height: u16,
+    language: Language,
+    compact: bool,
+}
+
+#[derive(Default)]
+struct HighScoresRenderCache {
+    key: Option<HighScoresStaticKey>,
+}
+
+fn menu_render_cache() -> &'static Mutex<MenuRenderCache> {
+    static CACHE: OnceLock<Mutex<MenuRenderCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(MenuRenderCache::default()))
+}
+
+fn high_scores_render_cache() -> &'static Mutex<HighScoresRenderCache> {
+    static CACHE: OnceLock<Mutex<HighScoresRenderCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HighScoresRenderCache::default()))
+}
+
+fn invalidate_menu_render_caches() {
+    {
+        let mut cache = menu_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.key = None;
+        cache.selected_option = None;
+    }
+    {
+        let mut cache = high_scores_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.key = None;
+    }
+}
+
+fn selected_option_style(is_danger: bool) -> &'static str {
+    if is_danger {
+        return STYLE_MENU_OPTION_SELECTED_DANGER;
+    }
+    STYLE_MENU_OPTION_SELECTED_MID
+}
 
 fn center_start(total: u16, content: u16) -> u16 {
     total.saturating_sub(content) / 2 + 1
@@ -122,6 +193,118 @@ fn draw_panel_separator(y: u16, x: u16, inner_width: u16, border_style: &str) {
     );
 }
 
+fn draw_menu_texture_region(
+    term_width: u16,
+    term_height: u16,
+    panel_start_x: u16,
+    panel_start_y: u16,
+    panel_width: u16,
+    panel_height: u16,
+    start_x: u16,
+    end_x: u16,
+    start_y: u16,
+    end_y: u16,
+) {
+    let region_start_x = start_x.max(1).min(term_width.max(1));
+    let region_end_x = end_x.max(region_start_x).min(term_width.max(1));
+    let region_start_y = start_y.max(1).min(term_height.max(1));
+    let region_end_y = end_y.max(region_start_y).min(term_height.max(1));
+
+    for y in region_start_y..=region_end_y {
+        let mut row = String::with_capacity((region_end_x - region_start_x + 1) as usize);
+        for x in region_start_x..=region_end_x {
+            let is_inside_panel = x >= panel_start_x
+                && x < panel_start_x.saturating_add(panel_width)
+                && y >= panel_start_y
+                && y < panel_start_y.saturating_add(panel_height);
+            if is_inside_panel {
+                row.push(' ');
+                continue;
+            }
+            // Keep background texture extremely subtle for a neutral, professional look.
+            let seed = (x as u32 * 19 + y as u32 * 31) % 211;
+            let ch = if seed == 0 { '.' } else { ' ' };
+            row.push(ch);
+        }
+        print!(
+            "{}\x1b[{};{}H{}{}",
+            STYLE_MENU_TEXTURE, y, region_start_x, row, ANSI_RESET
+        );
+    }
+}
+
+fn clear_rect(start_x: u16, end_x: u16, start_y: u16, end_y: u16) {
+    let width = end_x.saturating_sub(start_x).saturating_add(1) as usize;
+    let blank = " ".repeat(width);
+    for y in start_y..=end_y {
+        print!("\x1b[{};{}H{}", y, start_x, blank);
+    }
+}
+
+fn build_highlight_row_ansi(y: u16, x: u16, row_width: u16, row_style: &str, line: &str) -> String {
+    format!(
+        "{}\x1b[{};{}H{}{}{}\x1b[{};{}H{}{}",
+        row_style,
+        y,
+        x,
+        " ".repeat(row_width as usize),
+        ANSI_RESET,
+        row_style,
+        y,
+        x,
+        clip_by_display_width(line, row_width),
+        ANSI_RESET
+    )
+}
+
+fn menu_option_line_text(
+    option_index: usize,
+    option: &str,
+    selected_option: usize,
+    row_label_width: u16,
+) -> String {
+    let marker = if selected_option == option_index {
+        ">"
+    } else {
+        " "
+    };
+    let shortcut = if option_index < 6 {
+        format!("[{}]", option_index + 1)
+    } else {
+        "[ ]".to_string()
+    };
+    let clipped_label = clip_by_display_width(option, row_label_width);
+    let padded_label = pad_to_display_width(&clipped_label, row_label_width);
+    format!("{} {} {}", marker, shortcut, padded_label)
+}
+
+fn draw_menu_option_row(
+    row_y: u16,
+    options_start_x: u16,
+    row_width: u16,
+    row_label_width: u16,
+    option_index: usize,
+    option: &str,
+    selected_option: usize,
+    danger_option: Option<usize>,
+) {
+    let is_selected = selected_option == option_index;
+    let is_danger = matches!(danger_option, Some(index) if index == option_index);
+    let line = menu_option_line_text(option_index, option, selected_option, row_label_width);
+    let row_style = if is_selected {
+        selected_option_style(is_danger)
+    } else if is_danger {
+        STYLE_MENU_OPTION_DANGER
+    } else {
+        STYLE_MENU_OPTION
+    };
+
+    print!(
+        "{}",
+        build_highlight_row_ansi(row_y, options_start_x, row_width, row_style, &line)
+    );
+}
+
 fn draw_border(layout: &Layout) {
     let inner_width = layout.map_width.saturating_sub(2) as usize;
     let top = format!("┌{}┐", "─".repeat(inner_width));
@@ -142,6 +325,7 @@ fn draw_border(layout: &Layout) {
 }
 
 pub fn draw_static_frame(layout: &Layout) {
+    invalidate_menu_render_caches();
     print!("\x1b[2J\x1b[H");
     draw_border(layout);
 
@@ -149,6 +333,7 @@ pub fn draw_static_frame(layout: &Layout) {
 }
 
 pub fn draw_size_warning(size_check: SizeCheck, language: Language) {
+    invalidate_menu_render_caches();
     print!("\x1b[2J\x1b[H");
     let start_y = center_start(size_check.current_height, 5);
     draw_centered_line(
@@ -179,6 +364,7 @@ pub fn draw_size_warning(size_check: SizeCheck, language: Language) {
 }
 
 pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
+    invalidate_menu_render_caches();
     for pos in &game.dirty_positions {
         let (x, y) = layout.board_to_screen(pos.x, pos.y);
         print!("\x1b[{};{}H ", y, x);
@@ -354,6 +540,7 @@ pub fn draw(game: &mut Game, layout: &Layout, language: Language) {
 }
 
 pub fn draw_menu(
+    screen_tag: &str,
     title: &str,
     subtitle: Option<&str>,
     options: &[String],
@@ -362,12 +549,14 @@ pub fn draw_menu(
     term_width: u16,
     term_height: u16,
     language: Language,
+    compact: bool,
 ) {
-    print!("\x1b[2J\x1b[H");
-
     let subtitle = subtitle.filter(|text| !text.is_empty());
     let nav_hint = i18n::menu_navigation_hint(language);
     let confirm_hint = i18n::menu_confirm_hint(language);
+    let show_logo = !compact;
+    let pre_options_blank = if compact { 0u16 } else { 1u16 };
+    let pre_footer_blank = if compact { 0u16 } else { 1u16 };
 
     let max_inner_width = term_width.saturating_sub(2).max(1);
     let option_overhead = 6u16; // marker + shortcut token + spacing
@@ -378,107 +567,191 @@ pub fn draw_menu(
         .unwrap_or(0)
         .min(max_inner_width);
     let option_row_width = option_label_width.saturating_add(option_overhead);
+    let logo_width = display_width(MENU_LOGO);
     let title_width = display_width(title);
     let subtitle_width = subtitle.map(display_width).unwrap_or(0);
     let footer_width = display_width(nav_hint).max(display_width(confirm_hint));
 
     let desired_inner_width = title_width
+        .max(logo_width)
         .max(subtitle_width)
         .max(footer_width)
         .max(option_row_width.saturating_add(2))
         .max(32);
     let panel_inner_width = desired_inner_width.min(max_inner_width);
     let row_width = panel_inner_width.saturating_sub(2).max(1);
-    let row_label_width = row_width.saturating_sub(option_overhead);
-    let title_lines = if subtitle.is_some() { 2u16 } else { 1u16 };
-    let panel_inner_height = title_lines + 1 + 1 + options.len() as u16 + 1 + 1 + 2;
+    let row_label_width = row_width.saturating_sub(option_overhead).max(1);
+    let header_lines = u16::from(show_logo) + 1 + u16::from(subtitle.is_some());
+    let panel_inner_height =
+        header_lines + 1 + pre_options_blank + options.len() as u16 + pre_footer_blank + 1 + 2;
     let panel_width = panel_inner_width + 2;
     let panel_height = panel_inner_height + 2;
     let panel_start_y = center_start(term_height, panel_height);
     let panel_start_x = center_start(term_width, panel_width);
-
-    draw_panel_frame(
-        panel_start_y,
-        panel_start_x,
-        panel_inner_width,
-        panel_inner_height,
-        STYLE_MENU_BORDER,
-    );
-
-    let mut row_y = panel_start_y + 1;
-    let draw_title_width = title_width.min(panel_inner_width);
-    let title_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(draw_title_width) / 2);
-    print!("{}", STYLE_MENU_TITLE);
-    print_clipped(row_y, title_x, title, panel_inner_width);
-    print!("{}", ANSI_RESET);
-    row_y += 1;
-
-    if let Some(subtitle_text) = subtitle {
-        let subtitle_draw_width = display_width(subtitle_text).min(panel_inner_width);
-        let subtitle_x =
-            panel_start_x + 1 + (panel_inner_width.saturating_sub(subtitle_draw_width) / 2);
-        print!("{}", STYLE_MENU_SUBTITLE);
-        print_clipped(row_y, subtitle_x, subtitle_text, panel_inner_width);
-        print!("{}", ANSI_RESET);
-        row_y += 1;
-    }
-
-    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
-    row_y += 2; // separator + intentional breathing room before options
     let options_start_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(row_width) / 2);
-    for (i, option) in options.iter().enumerate() {
-        let is_selected = selected_option == i;
-        let is_danger = matches!(danger_option, Some(index) if index == i);
-        let marker = if is_selected { ">" } else { " " };
-        let shortcut = if i < 6 {
-            format!("[{}]", i + 1)
+    let clear_start_x = panel_start_x.saturating_sub(2).max(1);
+    let clear_end_x = panel_start_x
+        .saturating_add(panel_width)
+        .saturating_add(1)
+        .min(term_width.max(1));
+    let clear_start_y = panel_start_y.saturating_sub(1).max(1);
+    let clear_end_y = panel_start_y
+        .saturating_add(panel_height)
+        .saturating_add(1)
+        .min(term_height.max(1));
+
+    let static_key = MenuStaticKey {
+        screen_tag: screen_tag.to_string(),
+        title: title.to_string(),
+        subtitle: subtitle.map(str::to_string),
+        options: options.to_vec(),
+        danger_option,
+        term_width,
+        term_height,
+        language,
+        compact,
+    };
+
+    let (full_redraw, previous_selected) = {
+        let mut cache = menu_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let key_changed = cache.key.as_ref() != Some(&static_key);
+        let previous_selected = if key_changed {
+            None
         } else {
-            "[ ]".to_string()
+            cache.selected_option
         };
-        let clipped_label = clip_by_display_width(option, row_label_width);
-        let padded_label = pad_to_display_width(&clipped_label, row_label_width);
-        let line = format!("{} {} {}", marker, shortcut, padded_label);
-        let row_style = if is_selected {
-            if is_danger {
-                STYLE_MENU_OPTION_SELECTED_DANGER
-            } else {
-                STYLE_MENU_OPTION_SELECTED
-            }
-        } else if is_danger {
-            STYLE_MENU_OPTION_DANGER
-        } else {
-            STYLE_MENU_OPTION
-        };
-        print!(
-            "{}\x1b[{};{}H{}{}",
-            row_style,
-            row_y,
-            options_start_x,
-            " ".repeat(row_width as usize),
-            ANSI_RESET
+        cache.key = Some(static_key);
+        cache.selected_option = Some(selected_option);
+        (key_changed, previous_selected)
+    };
+
+    {
+        let mut cache = high_scores_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.key = None;
+    }
+
+    let options_start_y = {
+        let mut row_y = panel_start_y + 1;
+        if show_logo {
+            row_y += 1;
+        }
+        row_y += 1 + u16::from(subtitle.is_some());
+        row_y + 1 + pre_options_blank
+    };
+
+    if full_redraw {
+        clear_rect(clear_start_x, clear_end_x, clear_start_y, clear_end_y);
+        draw_menu_texture_region(
+            term_width,
+            term_height,
+            panel_start_x,
+            panel_start_y,
+            panel_width,
+            panel_height,
+            clear_start_x,
+            clear_end_x,
+            clear_start_y,
+            clear_end_y,
         );
-        print!("{}", row_style);
-        print_clipped(row_y, options_start_x, &line, row_width);
+        draw_panel_frame(
+            panel_start_y,
+            panel_start_x,
+            panel_inner_width,
+            panel_inner_height,
+            STYLE_MENU_BORDER,
+        );
+
+        let mut row_y = panel_start_y + 1;
+        if show_logo {
+            let logo_draw_width = logo_width.min(panel_inner_width);
+            let logo_x =
+                panel_start_x + 1 + (panel_inner_width.saturating_sub(logo_draw_width) / 2);
+            print!("{}", STYLE_MENU_LOGO);
+            print_clipped(row_y, logo_x, MENU_LOGO, panel_inner_width);
+            print!("{}", ANSI_RESET);
+            row_y += 1;
+        }
+
+        let draw_title_width = title_width.min(panel_inner_width);
+        let title_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(draw_title_width) / 2);
+        print!("{}", STYLE_MENU_TITLE);
+        print_clipped(row_y, title_x, title, panel_inner_width);
         print!("{}", ANSI_RESET);
         row_y += 1;
+
+        if let Some(subtitle_text) = subtitle {
+            let subtitle_draw_width = display_width(subtitle_text).min(panel_inner_width);
+            let subtitle_x =
+                panel_start_x + 1 + (panel_inner_width.saturating_sub(subtitle_draw_width) / 2);
+            print!("{}", STYLE_MENU_SUBTITLE);
+            print_clipped(row_y, subtitle_x, subtitle_text, panel_inner_width);
+            print!("{}", ANSI_RESET);
+            row_y += 1;
+        }
+
+        draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+        row_y += 1 + pre_options_blank;
+        for (i, option) in options.iter().enumerate() {
+            draw_menu_option_row(
+                row_y,
+                options_start_x,
+                row_width,
+                row_label_width,
+                i,
+                option,
+                selected_option,
+                danger_option,
+            );
+            row_y += 1;
+        }
+
+        row_y += pre_footer_blank;
+        draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
+        row_y += 1;
+
+        let nav_hint_width = display_width(nav_hint).min(panel_inner_width);
+        let nav_hint_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(nav_hint_width) / 2);
+        print!("{}", STYLE_MENU_HINT);
+        print_clipped(row_y, nav_hint_x, nav_hint, panel_inner_width);
+        print!("{}", ANSI_RESET);
+        row_y += 1;
+
+        let confirm_hint_width = display_width(confirm_hint).min(panel_inner_width);
+        let confirm_hint_x =
+            panel_start_x + 1 + (panel_inner_width.saturating_sub(confirm_hint_width) / 2);
+        print!("{}", STYLE_MENU_HINT);
+        print_clipped(row_y, confirm_hint_x, confirm_hint, panel_inner_width);
+        print!("{}", ANSI_RESET);
+    } else {
+        if let Some(previous) = previous_selected.filter(|index| *index < options.len()) {
+            draw_menu_option_row(
+                options_start_y + previous as u16,
+                options_start_x,
+                row_width,
+                row_label_width,
+                previous,
+                &options[previous],
+                selected_option,
+                danger_option,
+            );
+        }
+        if selected_option < options.len() && previous_selected != Some(selected_option) {
+            draw_menu_option_row(
+                options_start_y + selected_option as u16,
+                options_start_x,
+                row_width,
+                row_label_width,
+                selected_option,
+                &options[selected_option],
+                selected_option,
+                danger_option,
+            );
+        }
     }
-    row_y += 1;
-    draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
-    row_y += 1;
-
-    let nav_hint_width = display_width(nav_hint).min(panel_inner_width);
-    let nav_hint_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(nav_hint_width) / 2);
-    print!("{}", STYLE_MENU_HINT);
-    print_clipped(row_y, nav_hint_x, nav_hint, panel_inner_width);
-    print!("{}", ANSI_RESET);
-    row_y += 1;
-
-    let confirm_hint_width = display_width(confirm_hint).min(panel_inner_width);
-    let confirm_hint_x =
-        panel_start_x + 1 + (panel_inner_width.saturating_sub(confirm_hint_width) / 2);
-    print!("{}", STYLE_MENU_HINT);
-    print_clipped(row_y, confirm_hint_x, confirm_hint, panel_inner_width);
-    print!("{}", ANSI_RESET);
 
     let _ = std::io::stdout().flush();
 }
@@ -488,8 +761,35 @@ pub fn draw_high_scores_menu(
     term_width: u16,
     term_height: u16,
     language: Language,
+    compact: bool,
 ) {
-    print!("\x1b[2J\x1b[H");
+    let static_key = HighScoresStaticKey {
+        high_scores: *high_scores,
+        term_width,
+        term_height,
+        language,
+        compact,
+    };
+    {
+        let mut cache = high_scores_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if cache.key == Some(static_key) {
+            return;
+        }
+        cache.key = Some(static_key);
+    }
+    {
+        let mut cache = menu_render_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.key = None;
+        cache.selected_option = None;
+    }
+
+    let show_logo = !compact;
+    let pre_options_blank = if compact { 0u16 } else { 1u16 };
+    let pre_footer_blank = if compact { 0u16 } else { 1u16 };
 
     let entries = [
         (
@@ -502,6 +802,11 @@ pub fn draw_high_scores_menu(
         (Difficulty::Hard, high_scores.hard, "III", "\x1b[33m"),
         (Difficulty::Extreme, high_scores.extreme, "IV", "\x1b[31m"),
     ];
+    let max_score = entries
+        .iter()
+        .map(|(_, score, _, _)| *score)
+        .max()
+        .unwrap_or(0);
 
     let best_label = i18n::info_best_label(language);
     let max_label_width = entries
@@ -519,14 +824,16 @@ pub fn draw_high_scores_menu(
         .map(|(_, _, badge, _)| display_width(badge))
         .max()
         .unwrap_or(1);
+    let min_bar_width = 8u16;
 
     let card_inner_width = (max_label_width
         .max(max_score_width)
         .max(max_badge_width)
         .max(display_width(best_label))
+        .max(min_bar_width.saturating_add(2))
         + 2)
-    .clamp(10, 18);
-    let card_inner_height = 4u16;
+    .clamp(12, 20);
+    let card_inner_height = 5u16;
     let card_width = card_inner_width + 2;
     let card_height = card_inner_height + 2;
     let gap = 2u16;
@@ -542,20 +849,47 @@ pub fn draw_high_scores_menu(
     let title = i18n::high_scores_menu_title(language);
     let back_line = format!("> {}", i18n::menu_back(language));
     let back_hint = i18n::high_scores_back_hint(language);
+    let logo_width = display_width(MENU_LOGO);
     let max_inner_width = term_width.saturating_sub(2).max(1);
     let desired_inner_width = cards_row_width
         .saturating_add(2)
+        .max(logo_width)
         .max(display_width(title))
         .max(display_width(&back_line))
         .max(display_width(back_hint))
         .max(32);
     let panel_inner_width = desired_inner_width.min(max_inner_width);
-    let panel_inner_height = cards_block_height + 7;
+    let header_lines = u16::from(show_logo) + 1;
+    let panel_inner_height =
+        header_lines + 1 + pre_options_blank + cards_block_height + pre_footer_blank + 1 + 2;
     let panel_width = panel_inner_width + 2;
     let panel_height = panel_inner_height + 2;
     let panel_start_x = center_start(term_width, panel_width);
     let panel_start_y = center_start(term_height, panel_height);
+    let clear_start_x = panel_start_x.saturating_sub(2).max(1);
+    let clear_end_x = panel_start_x
+        .saturating_add(panel_width)
+        .saturating_add(1)
+        .min(term_width.max(1));
+    let clear_start_y = panel_start_y.saturating_sub(1).max(1);
+    let clear_end_y = panel_start_y
+        .saturating_add(panel_height)
+        .saturating_add(1)
+        .min(term_height.max(1));
 
+    clear_rect(clear_start_x, clear_end_x, clear_start_y, clear_end_y);
+    draw_menu_texture_region(
+        term_width,
+        term_height,
+        panel_start_x,
+        panel_start_y,
+        panel_width,
+        panel_height,
+        clear_start_x,
+        clear_end_x,
+        clear_start_y,
+        clear_end_y,
+    );
     draw_panel_frame(
         panel_start_y,
         panel_start_x,
@@ -565,6 +899,15 @@ pub fn draw_high_scores_menu(
     );
 
     let mut row_y = panel_start_y + 1;
+    if show_logo {
+        let logo_draw_width = logo_width.min(panel_inner_width);
+        let logo_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(logo_draw_width) / 2);
+        print!("{}", STYLE_MENU_LOGO);
+        print_clipped(row_y, logo_x, MENU_LOGO, panel_inner_width);
+        print!("{}", ANSI_RESET);
+        row_y += 1;
+    }
+
     let title_draw_width = display_width(title).min(panel_inner_width);
     let title_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(title_draw_width) / 2);
     print!("{}", STYLE_MENU_TITLE);
@@ -573,13 +916,25 @@ pub fn draw_high_scores_menu(
     row_y += 1;
 
     draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
-    row_y += 2; // separator + breathing room
+    row_y += 1 + pre_options_blank;
     let cards_y = row_y;
 
     let draw_card =
         |x: u16, y: u16, difficulty: Difficulty, score: u32, badge: &str, color: &str| {
             let label = i18n::difficulty_label(language, difficulty);
             let score_text = score.to_string();
+            let bar_width = card_inner_width.saturating_sub(2).max(4);
+            let filled_width = if max_score == 0 {
+                0
+            } else {
+                ((score as u64 * bar_width as u64).div_ceil(max_score as u64) as u16).min(bar_width)
+            };
+            let empty_width = bar_width.saturating_sub(filled_width);
+            let bar_line = format!(
+                "{}{}",
+                "█".repeat(filled_width as usize),
+                "░".repeat(empty_width as usize)
+            );
 
             print!(
                 "{}\x1b[{};{}H┌{}┐{}",
@@ -627,6 +982,11 @@ pub fn draw_high_scores_menu(
             print!("{}", STYLE_MENU_TITLE);
             print_clipped(y + 4, score_x, &score_text, card_inner_width);
             print!("{}", ANSI_RESET);
+
+            let bar_x = x + 1 + (card_inner_width.saturating_sub(bar_width) / 2);
+            print!("{}", color);
+            print_clipped(y + 5, bar_x, &bar_line, bar_width);
+            print!("{}", ANSI_RESET);
         };
 
     let row_start_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(cards_row_width) / 2);
@@ -639,7 +999,7 @@ pub fn draw_high_scores_menu(
     }
 
     row_y = cards_y + cards_block_height;
-    row_y += 1;
+    row_y += pre_footer_blank;
     draw_panel_separator(row_y, panel_start_x, panel_inner_width, STYLE_MENU_BORDER);
     row_y += 1;
 
@@ -647,15 +1007,16 @@ pub fn draw_high_scores_menu(
     let back_x = panel_start_x + 1 + (panel_inner_width.saturating_sub(back_row_width) / 2);
     let clipped_back_line = clip_by_display_width(&back_line, back_row_width);
     let padded_back_line = pad_to_display_width(&clipped_back_line, back_row_width);
+    let selected_style = selected_option_style(false);
     print!(
         "{}\x1b[{};{}H{}{}",
-        STYLE_MENU_OPTION_SELECTED,
+        selected_style,
         row_y,
         back_x,
         " ".repeat(back_row_width as usize),
         ANSI_RESET
     );
-    print!("{}", STYLE_MENU_OPTION_SELECTED);
+    print!("{}", selected_style);
     print_clipped(row_y, back_x, &padded_back_line, back_row_width);
     print!("{}", ANSI_RESET);
     row_y += 1;
@@ -667,4 +1028,33 @@ pub fn draw_high_scores_menu(
     print!("{}", ANSI_RESET);
 
     let _ = std::io::stdout().flush();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_option_line_text_snapshot() {
+        let line = menu_option_line_text(0, "Play", 0, 10);
+        assert_eq!(line, "> [1] Play      ");
+    }
+
+    #[test]
+    fn selected_row_ansi_snapshot() {
+        let ansi = build_highlight_row_ansi(7, 12, 16, selected_option_style(false), "> [1] Play");
+        assert_eq!(
+            ansi,
+            "\x1b[1;38;2;255;255;255;48;2;89;138;207m\x1b[7;12H                \x1b[0m\x1b[1;38;2;255;255;255;48;2;89;138;207m\x1b[7;12H> [1] Play\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn danger_row_ansi_snapshot() {
+        let ansi = build_highlight_row_ansi(5, 3, 14, selected_option_style(true), "> [5] Reset");
+        assert_eq!(
+            ansi,
+            "\x1b[1;97;41m\x1b[5;3H              \x1b[0m\x1b[1;97;41m\x1b[5;3H> [5] Reset\x1b[0m"
+        );
+    }
 }

@@ -137,6 +137,16 @@ pub fn settings_sound_label(language: Language) -> &'static str {
     }
 }
 
+pub fn settings_ui_compact_label(language: Language) -> &'static str {
+    match language {
+        Language::En => "Compact UI",
+        Language::Es => "IU compacta",
+        Language::Ja => "コンパクトUI",
+        Language::Pt => "UI compacta",
+        Language::Zh => "紧凑界面",
+    }
+}
+
 pub fn settings_reset_high_scores_label(language: Language) -> &'static str {
     match language {
         Language::En => "Reset High Scores",
@@ -442,6 +452,11 @@ pub fn minimum_ui_width(language: Language) -> u16 {
     } else {
         setting_off(language)
     };
+    let compact_value = if text_width(setting_on(language)) >= text_width(setting_off(language)) {
+        setting_on(language)
+    } else {
+        setting_off(language)
+    };
 
     let main_options = [
         menu_play(language).to_string(),
@@ -465,6 +480,7 @@ pub fn minimum_ui_width(language: Language) -> u16 {
             pause_value
         ),
         format!("{}: {}", settings_sound_label(language), sound_value),
+        format!("{}: {}", settings_ui_compact_label(language), compact_value),
         settings_reset_high_scores_label(language).to_string(),
         menu_back(language).to_string(),
     ];
@@ -553,6 +569,7 @@ mod tests {
         assert!(!language_label(language).is_empty());
         assert!(!settings_pause_on_focus_loss_label(language).is_empty());
         assert!(!settings_sound_label(language).is_empty());
+        assert!(!settings_ui_compact_label(language).is_empty());
         assert!(!settings_reset_high_scores_label(language).is_empty());
         assert!(!reset_high_scores_title(language).is_empty());
         assert!(!setting_on(language).is_empty());
