@@ -10,7 +10,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 No changes yet.
 
 ### Changed
-No changes yet.
+- Gameplay preview image (`media/rustnakegameplay.webp`) was refreshed.
 
 ### Fixed
 No changes yet.
