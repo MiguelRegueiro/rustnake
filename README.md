@@ -118,6 +118,36 @@ On unsigned binaries, Windows may show a SmartScreen prompt on first run.
 If prompted: click `More info` then `Run anyway`.
 </details>
 
+<details>
+<summary>Uninstall</summary>
+
+Cargo (all platforms):
+
+```bash
+cargo uninstall rustnake
+```
+
+Linux binary:
+
+```bash
+rm -f ./rustnake-linux-x86_64 ./rustnake-linux-x86_64.sha256
+```
+
+macOS binary:
+
+```bash
+sudo rm -f /usr/local/bin/rustnake
+rm -f "$HOME/.local/bin/rustnake"
+```
+
+Windows binary (PowerShell):
+
+```powershell
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:LOCALAPPDATA "Rustnake\rustnake.exe")
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:LOCALAPPDATA "Rustnake\rustnake-windows-x86_64.exe.sha256")
+```
+</details>
+
 ## Build from source
 
 ```bash
