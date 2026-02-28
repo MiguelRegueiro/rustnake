@@ -2,3 +2,6 @@
 /high_scores.toml
 /rustnake
 /.rustnake.toml
+/mac_cert.b64
+/notary_key.b64
+/win_cert.b64
