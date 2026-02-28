@@ -117,7 +117,7 @@ fn high_scores_options(language: Language, high_scores: &HighScores) -> Vec<Stri
         .iter()
         .map(|(label, score)| {
             format!(
-                "{label:<label_width$} : {score:>score_width$}",
+                "{label:<label_width$}   {score:>score_width$}",
                 label = label,
                 score = score,
                 label_width = label_width,
