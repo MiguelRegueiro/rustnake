@@ -83,6 +83,18 @@ fn difficulty_from_index(index: usize) -> Difficulty {
     }
 }
 
+fn menu_required_min_size(language: Language) -> layout::MinSize {
+    let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, language);
+    let menu_floor = layout::MinSize {
+        width: 34,
+        height: 23,
+    };
+    layout::MinSize {
+        width: gameplay_min.width.max(menu_floor.width),
+        height: gameplay_min.height.max(menu_floor.height),
+    }
+}
+
 fn show_menu(
     rx: &mpsc::Receiver<GameInput>,
     term_size: &mut (u16, u16),
@@ -101,175 +113,174 @@ fn show_menu(
 
     loop {
         let ui_language = settings.language;
-        let layout_check = layout::compute_layout(
-            term_size.0,
-            term_size.1,
-            utils::WIDTH,
-            utils::HEIGHT,
-            ui_language,
-        );
-        match layout_check {
-            Ok(_) => {
-                if matches!(screen, MenuScreen::HighScores) {
-                    render::draw_high_scores_menu(render::HighScoresRenderRequest {
-                        high_scores,
-                        term_width: term_size.0,
-                        term_height: term_size.1,
-                        language: ui_language,
-                        compact: settings.ui_compact,
-                    });
-                } else {
-                    let (screen_tag, title, subtitle, options, selected, danger_option) =
-                        match screen {
-                            MenuScreen::Main => (
-                                "MENU",
-                                i18n::menu_title(ui_language),
-                                Some(format!(
-                                    "{}: {}",
-                                    i18n::menu_difficulty(ui_language),
-                                    i18n::difficulty_label(ui_language, *selected_difficulty)
-                                )),
-                                vec![
-                                    i18n::menu_play(ui_language).to_string(),
-                                    format!(
-                                        "{}: {}",
-                                        i18n::menu_difficulty(ui_language),
-                                        i18n::difficulty_label(ui_language, *selected_difficulty)
-                                    ),
-                                    i18n::menu_high_scores(ui_language).to_string(),
-                                    i18n::menu_settings(ui_language).to_string(),
-                                    i18n::menu_quit(ui_language).to_string(),
-                                ],
-                                main_selected,
-                                None,
+        let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, ui_language);
+        let required_min = menu_required_min_size(ui_language);
+        let can_start_game =
+            term_size.0 >= gameplay_min.width && term_size.1 >= gameplay_min.height;
+        let can_render_menu =
+            term_size.0 >= required_min.width && term_size.1 >= required_min.height;
+
+        if can_render_menu {
+            if matches!(screen, MenuScreen::HighScores) {
+                render::draw_high_scores_menu(render::HighScoresRenderRequest {
+                    high_scores,
+                    term_width: term_size.0,
+                    term_height: term_size.1,
+                    language: ui_language,
+                    compact: settings.ui_compact,
+                });
+            } else {
+                let (screen_tag, title, subtitle, options, selected, danger_option) = match screen {
+                    MenuScreen::Main => (
+                        "MENU",
+                        i18n::menu_title(ui_language),
+                        Some(format!(
+                            "{}: {}",
+                            i18n::menu_difficulty(ui_language),
+                            i18n::difficulty_label(ui_language, *selected_difficulty)
+                        )),
+                        vec![
+                            i18n::menu_play(ui_language).to_string(),
+                            format!(
+                                "{}: {}",
+                                i18n::menu_difficulty(ui_language),
+                                i18n::difficulty_label(ui_language, *selected_difficulty)
                             ),
-                            MenuScreen::Difficulty => (
-                                "DIFFICULTY",
-                                i18n::difficulty_menu_title(ui_language),
-                                Some(format!(
-                                    "{}: {}",
-                                    i18n::menu_difficulty(ui_language),
-                                    i18n::difficulty_label(
-                                        ui_language,
-                                        difficulty_from_index(difficulty_selected.min(3))
-                                    )
-                                )),
-                                vec![
-                                    i18n::difficulty_label(ui_language, Difficulty::Easy)
-                                        .to_string(),
-                                    i18n::difficulty_label(ui_language, Difficulty::Medium)
-                                        .to_string(),
-                                    i18n::difficulty_label(ui_language, Difficulty::Hard)
-                                        .to_string(),
-                                    i18n::difficulty_label(ui_language, Difficulty::Extreme)
-                                        .to_string(),
-                                    i18n::menu_back(ui_language).to_string(),
-                                ],
-                                difficulty_selected,
-                                None,
-                            ),
-                            MenuScreen::Settings => (
-                                "SETTINGS",
-                                i18n::menu_settings(ui_language),
-                                Some(format!(
-                                    "{}: {}  {}: {}",
-                                    i18n::language_label(ui_language),
-                                    i18n::language_name(settings.language),
-                                    i18n::settings_sound_label(ui_language),
-                                    if settings.sound_on {
-                                        i18n::setting_on(ui_language)
-                                    } else {
-                                        i18n::setting_off(ui_language)
-                                    }
-                                )),
-                                vec![
-                                    format!(
-                                        "{}: {}",
-                                        i18n::language_label(ui_language),
-                                        i18n::language_name(settings.language)
-                                    ),
-                                    format!(
-                                        "{}: {}",
-                                        i18n::settings_pause_on_focus_loss_label(ui_language),
-                                        if settings.pause_on_focus_loss {
-                                            i18n::setting_on(ui_language)
-                                        } else {
-                                            i18n::setting_off(ui_language)
-                                        }
-                                    ),
-                                    format!(
-                                        "{}: {}",
-                                        i18n::settings_sound_label(ui_language),
-                                        if settings.sound_on {
-                                            i18n::setting_on(ui_language)
-                                        } else {
-                                            i18n::setting_off(ui_language)
-                                        }
-                                    ),
-                                    format!(
-                                        "{}: {}",
-                                        i18n::settings_ui_compact_label(ui_language),
-                                        if settings.ui_compact {
-                                            i18n::setting_on(ui_language)
-                                        } else {
-                                            i18n::setting_off(ui_language)
-                                        }
-                                    ),
-                                    i18n::settings_reset_high_scores_label(ui_language).to_string(),
-                                    i18n::menu_back(ui_language).to_string(),
-                                ],
-                                settings_selected,
-                                Some(4),
-                            ),
-                            MenuScreen::Language => {
-                                let mut options: Vec<String> = Language::ALL
-                                    .iter()
-                                    .map(|language| i18n::language_name(*language).to_string())
-                                    .collect();
-                                options.push(i18n::menu_back(ui_language).to_string());
-                                (
-                                    "LANGUAGE",
-                                    i18n::language_popup_title(ui_language),
-                                    Some(format!(
-                                        "{}: {}",
-                                        i18n::language_label(ui_language),
-                                        i18n::language_name(settings.language)
-                                    )),
-                                    options,
-                                    language_selected,
-                                    None,
-                                )
+                            i18n::menu_high_scores(ui_language).to_string(),
+                            i18n::menu_settings(ui_language).to_string(),
+                            i18n::menu_quit(ui_language).to_string(),
+                        ],
+                        main_selected,
+                        None,
+                    ),
+                    MenuScreen::Difficulty => (
+                        "DIFFICULTY",
+                        i18n::difficulty_menu_title(ui_language),
+                        Some(format!(
+                            "{}: {}",
+                            i18n::menu_difficulty(ui_language),
+                            i18n::difficulty_label(
+                                ui_language,
+                                difficulty_from_index(difficulty_selected.min(3))
+                            )
+                        )),
+                        vec![
+                            i18n::difficulty_label(ui_language, Difficulty::Easy).to_string(),
+                            i18n::difficulty_label(ui_language, Difficulty::Medium).to_string(),
+                            i18n::difficulty_label(ui_language, Difficulty::Hard).to_string(),
+                            i18n::difficulty_label(ui_language, Difficulty::Extreme).to_string(),
+                            i18n::menu_back(ui_language).to_string(),
+                        ],
+                        difficulty_selected,
+                        None,
+                    ),
+                    MenuScreen::Settings => (
+                        "SETTINGS",
+                        i18n::menu_settings(ui_language),
+                        Some(format!(
+                            "{}: {}  {}: {}",
+                            i18n::language_label(ui_language),
+                            i18n::language_name(settings.language),
+                            i18n::settings_sound_label(ui_language),
+                            if settings.sound_on {
+                                i18n::setting_on(ui_language)
+                            } else {
+                                i18n::setting_off(ui_language)
                             }
-                            MenuScreen::ResetScoresConfirm => (
-                                "RESET",
-                                i18n::reset_high_scores_title(ui_language),
-                                Some(
-                                    i18n::settings_reset_high_scores_label(ui_language).to_string(),
-                                ),
-                                vec![
-                                    i18n::confirm_yes(ui_language).to_string(),
-                                    i18n::confirm_no(ui_language).to_string(),
-                                ],
-                                reset_selected,
-                                Some(0),
+                        )),
+                        vec![
+                            format!(
+                                "{}: {}",
+                                i18n::language_label(ui_language),
+                                i18n::language_name(settings.language)
                             ),
-                            MenuScreen::HighScores => unreachable!(),
-                        };
-                    render::draw_menu(render::MenuRenderRequest {
-                        screen_tag,
-                        title,
-                        subtitle: subtitle.as_deref(),
-                        options: &options,
-                        selected_option: selected,
-                        danger_option,
-                        term_width: term_size.0,
-                        term_height: term_size.1,
-                        language: ui_language,
-                        compact: settings.ui_compact,
-                    });
-                }
+                            format!(
+                                "{}: {}",
+                                i18n::settings_pause_on_focus_loss_label(ui_language),
+                                if settings.pause_on_focus_loss {
+                                    i18n::setting_on(ui_language)
+                                } else {
+                                    i18n::setting_off(ui_language)
+                                }
+                            ),
+                            format!(
+                                "{}: {}",
+                                i18n::settings_sound_label(ui_language),
+                                if settings.sound_on {
+                                    i18n::setting_on(ui_language)
+                                } else {
+                                    i18n::setting_off(ui_language)
+                                }
+                            ),
+                            format!(
+                                "{}: {}",
+                                i18n::settings_ui_compact_label(ui_language),
+                                if settings.ui_compact {
+                                    i18n::setting_on(ui_language)
+                                } else {
+                                    i18n::setting_off(ui_language)
+                                }
+                            ),
+                            i18n::settings_reset_high_scores_label(ui_language).to_string(),
+                            i18n::menu_back(ui_language).to_string(),
+                        ],
+                        settings_selected,
+                        Some(4),
+                    ),
+                    MenuScreen::Language => {
+                        let mut options: Vec<String> = Language::ALL
+                            .iter()
+                            .map(|language| i18n::language_name(*language).to_string())
+                            .collect();
+                        options.push(i18n::menu_back(ui_language).to_string());
+                        (
+                            "LANGUAGE",
+                            i18n::language_popup_title(ui_language),
+                            Some(format!(
+                                "{}: {}",
+                                i18n::language_label(ui_language),
+                                i18n::language_name(settings.language)
+                            )),
+                            options,
+                            language_selected,
+                            None,
+                        )
+                    }
+                    MenuScreen::ResetScoresConfirm => (
+                        "RESET",
+                        i18n::reset_high_scores_title(ui_language),
+                        Some(i18n::settings_reset_high_scores_label(ui_language).to_string()),
+                        vec![
+                            i18n::confirm_yes(ui_language).to_string(),
+                            i18n::confirm_no(ui_language).to_string(),
+                        ],
+                        reset_selected,
+                        Some(0),
+                    ),
+                    MenuScreen::HighScores => unreachable!(),
+                };
+                render::draw_menu(render::MenuRenderRequest {
+                    screen_tag,
+                    title,
+                    subtitle: subtitle.as_deref(),
+                    options: &options,
+                    selected_option: selected,
+                    danger_option,
+                    term_width: term_size.0,
+                    term_height: term_size.1,
+                    language: ui_language,
+                    compact: settings.ui_compact,
+                });
             }
-            Err(size_check) => render::draw_size_warning(size_check, ui_language),
+        } else {
+            render::draw_size_warning(
+                layout::SizeCheck {
+                    current_width: term_size.0,
+                    current_height: term_size.1,
+                    minimum: required_min,
+                },
+                ui_language,
+            );
         }
 
         let input_cmd = match rx.recv() {
@@ -287,6 +298,9 @@ fn show_menu(
         match input_cmd {
             GameInput::Resize(width, height) => {
                 *term_size = (width, height);
+                // Force a full redraw on resize to prevent stale content from
+                // reappearing when terminals restore previously hidden columns.
+                render::clear_for_menu_entry();
             }
             GameInput::MenuSelect(option) => {
                 let selection = option.min(max_index);
@@ -322,7 +336,7 @@ fn show_menu(
             GameInput::MenuConfirm => match screen {
                 MenuScreen::Main => match main_selected {
                     0 => {
-                        if layout_check.is_ok() {
+                        if can_start_game {
                             return Some(*selected_difficulty);
                         }
                     }
@@ -636,4 +650,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_required_min_size_applies_menu_safety_floor() {
+        for language in Language::ALL {
+            let gameplay_min = layout::min_terminal_size(utils::WIDTH, utils::HEIGHT, language);
+            let menu_min = menu_required_min_size(language);
+            assert_eq!(menu_min.width, gameplay_min.width.max(34));
+            assert_eq!(menu_min.height, gameplay_min.height.max(23));
+        }
+    }
 }

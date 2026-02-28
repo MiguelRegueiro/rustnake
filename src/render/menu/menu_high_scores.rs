@@ -6,8 +6,8 @@ use std::io::Write;
 use super::super::shared::{
     ANSI_RESET, MENU_LOGO, Rect, STYLE_MENU_BORDER, STYLE_MENU_HINT, STYLE_MENU_LOGO,
     STYLE_MENU_OPTION, STYLE_MENU_SUBTITLE, STYLE_MENU_TITLE, TextureContext, center_start,
-    clear_rect, clip_by_display_width, display_width, draw_menu_texture_region, draw_panel_frame,
-    draw_panel_separator, pad_to_display_width, print_clipped,
+    clear_rect_clipped, clip_by_display_width, display_width, draw_menu_texture_region,
+    draw_panel_frame, draw_panel_separator, pad_to_display_width, print_clipped,
 };
 use super::menu_cache;
 use super::menu_main::selected_option_style;
@@ -128,7 +128,7 @@ pub fn draw_high_scores_menu(request: HighScoresRenderRequest<'_>) {
     };
 
     let redraw_region = menu_cache::claim_redraw_region(current_clear_region);
-    clear_rect(redraw_region);
+    clear_rect_clipped(redraw_region, term_width, term_height);
     draw_menu_texture_region(
         TextureContext {
             term_width,
