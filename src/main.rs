@@ -83,6 +83,52 @@ fn difficulty_from_index(index: usize) -> Difficulty {
     }
 }
 
+fn high_scores_options(language: Language, high_scores: &HighScores) -> Vec<String> {
+    let entries = [
+        (
+            i18n::difficulty_label(language, Difficulty::Easy),
+            high_scores.easy,
+        ),
+        (
+            i18n::difficulty_label(language, Difficulty::Medium),
+            high_scores.medium,
+        ),
+        (
+            i18n::difficulty_label(language, Difficulty::Hard),
+            high_scores.hard,
+        ),
+        (
+            i18n::difficulty_label(language, Difficulty::Extreme),
+            high_scores.extreme,
+        ),
+    ];
+    let label_width = entries
+        .iter()
+        .map(|(label, _)| label.chars().count())
+        .max()
+        .unwrap_or(0);
+    let score_width = entries
+        .iter()
+        .map(|(_, score)| score.to_string().len())
+        .max()
+        .unwrap_or(1);
+
+    let mut options: Vec<String> = entries
+        .iter()
+        .map(|(label, score)| {
+            format!(
+                "{label:<label_width$} : {score:>score_width$}",
+                label = label,
+                score = score,
+                label_width = label_width,
+                score_width = score_width
+            )
+        })
+        .collect();
+    options.push(i18n::menu_back(language).to_string());
+    options
+}
+
 fn show_menu(
     rx: &mpsc::Receiver<GameInput>,
     term_size: &mut (u16, u16),
@@ -169,29 +215,7 @@ fn show_menu(
                     ),
                     MenuScreen::HighScores => (
                         i18n::high_scores_menu_title(ui_language),
-                        vec![
-                            format!(
-                                "{}: {}",
-                                i18n::difficulty_label(ui_language, Difficulty::Easy),
-                                high_scores.easy
-                            ),
-                            format!(
-                                "{}: {}",
-                                i18n::difficulty_label(ui_language, Difficulty::Medium),
-                                high_scores.medium
-                            ),
-                            format!(
-                                "{}: {}",
-                                i18n::difficulty_label(ui_language, Difficulty::Hard),
-                                high_scores.hard
-                            ),
-                            format!(
-                                "{}: {}",
-                                i18n::difficulty_label(ui_language, Difficulty::Extreme),
-                                high_scores.extreme
-                            ),
-                            i18n::menu_back(ui_language).to_string(),
-                        ],
+                        high_scores_options(ui_language, high_scores),
                         high_scores_selected,
                     ),
                     MenuScreen::Language => {
@@ -245,7 +269,7 @@ fn show_menu(
                     match screen {
                         MenuScreen::Main => main_selected = selection,
                         MenuScreen::Difficulty => difficulty_selected = selection,
-                        MenuScreen::HighScores => high_scores_selected = selection,
+                        MenuScreen::HighScores => high_scores_selected = 4,
                         MenuScreen::Settings => settings_selected = selection,
                         MenuScreen::Language => language_selected = selection,
                         MenuScreen::ResetScoresConfirm => reset_selected = selection,
@@ -256,9 +280,7 @@ fn show_menu(
                     MenuScreen::Difficulty => {
                         difficulty_selected = difficulty_selected.saturating_sub(1)
                     }
-                    MenuScreen::HighScores => {
-                        high_scores_selected = high_scores_selected.saturating_sub(1)
-                    }
+                    MenuScreen::HighScores => {}
                     MenuScreen::Settings => settings_selected = settings_selected.saturating_sub(1),
                     MenuScreen::Language => language_selected = language_selected.saturating_sub(1),
                     MenuScreen::ResetScoresConfirm => {
@@ -270,9 +292,7 @@ fn show_menu(
                     MenuScreen::Difficulty => {
                         difficulty_selected = (difficulty_selected + 1).min(4)
                     }
-                    MenuScreen::HighScores => {
-                        high_scores_selected = (high_scores_selected + 1).min(4)
-                    }
+                    MenuScreen::HighScores => {}
                     MenuScreen::Settings => settings_selected = (settings_selected + 1).min(4),
                     MenuScreen::Language => {
                         language_selected = (language_selected + 1).min(Language::ALL.len())
