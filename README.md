@@ -8,7 +8,7 @@ Classic Snake for the terminal, built in Rust.
 
 ## Quick Start
 
-Linux (Tier 1 support):
+Linux binary (Tier 1 support):
 
 ```bash
 curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
@@ -16,17 +16,19 @@ chmod +x rustnake
 ./rustnake
 ```
 
-Cargo alternative:
+Cargo (all platforms):
 
 ```bash
 cargo install rustnake --locked
 rustnake
 ```
 
-## Support Tiers
+## Binary Support Tiers
 
-- Tier 1: Linux (`x86_64-unknown-linux-gnu`) is fully supported, with Cargo as the primary install path and Linux release binaries as a supported alternative.
-- Tier 2: macOS and Windows are provided as convenience binary distributions with CI smoke checks.
+- Tiers classify prebuilt release binaries only.
+- Tier 1 binary: Linux (`x86_64-unknown-linux-gnu`) is fully supported.
+- Tier 2 binaries: macOS and Windows are convenience distributions with CI smoke checks.
+- Cargo install is supported across Linux/macOS/Windows and is outside binary tier classification.
 
 ## Binary Trust Policy
 
@@ -36,6 +38,19 @@ rustnake
 - There is currently no planned signing/notarization rollout.
 
 ## Install and Update
+
+Cargo (all platforms, outside binary tier classification):
+
+```bash
+cargo install rustnake --locked
+rustnake
+```
+
+```bash
+cargo install rustnake --locked --force
+```
+
+`--locked` keeps dependency resolution reproducible.
 
 | Platform | Tier | Support |
 | --- | --- | --- |
@@ -53,27 +68,12 @@ chmod +x rustnake
 ./rustnake
 ```
 
-Install (Cargo):
-
-```bash
-cargo install rustnake --locked
-rustnake
-```
-
 Update (release binary):
 
 ```bash
 curl -fL https://github.com/MiguelRegueiro/rustnake/releases/latest/download/rustnake-linux-x86_64 -o rustnake
 chmod +x rustnake
 ```
-
-Update (Cargo):
-
-```bash
-cargo install rustnake --locked --force
-```
-
-`--locked` keeps dependency resolution reproducible.
 
 <details>
 <summary>macOS (Tier 2)</summary>
