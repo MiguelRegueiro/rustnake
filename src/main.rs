@@ -318,7 +318,28 @@ fn is_reverse_direction(current: utils::Direction, next: utils::Direction) -> bo
     )
 }
 
+fn run_smoke_check() -> Result<(), String> {
+    let config = storage::load_config();
+    storage::save_config(&config)?;
+    let config_path = storage::config_path_for_current_user();
+    if std::fs::metadata(&config_path).is_err() {
+        return Err(format!(
+            "config file was not created at {}",
+            config_path.display()
+        ));
+    }
+    println!("rustnake smoke-check ok: {}", config_path.display());
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().any(|arg| arg == "--smoke-check") {
+        if let Err(err) = run_smoke_check() {
+            return Err(std::io::Error::other(err).into());
+        }
+        return Ok(());
+    }
+
     // Setup terminal
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen, Hide, EnableFocusChange)?;

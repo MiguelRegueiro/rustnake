@@ -368,6 +368,42 @@ jobs:
           }
           Write-Host "Authenticode signature is valid."
 
+      - name: Smoke-check binary startup and config path (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/smoke-home"
+          mkdir -p "$HOME"
+
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            target/release/rustnake-universal2 --smoke-check
+            expected_path="$HOME/Library/Application Support/Rustnake/config.toml"
+          else
+            target/release/rustnake --smoke-check
+            expected_path="$HOME/.rustnake.toml"
+          fi
+
+          if [[ ! -f "$expected_path" ]]; then
+            echo "Smoke-check did not create expected config file at: $expected_path" >&2
+            exit 1
+          fi
+
+      - name: Smoke-check binary startup and config path (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "smoke-appdata"
+          New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
+
+          & "target/release/rustnake.exe" --smoke-check
+
+          $expectedPath = Join-Path $env:APPDATA "Rustnake\config.toml"
+          if (-not (Test-Path $expectedPath)) {
+            throw "Smoke-check did not create expected config file at: $expectedPath"
+          }
+
       - name: Package asset and checksum
         id: package
         shell: bash
@@ -401,6 +437,60 @@ jobs:
           echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
           echo "asset_path=$asset_path" >> "$GITHUB_OUTPUT"
           echo "checksum_path=$checksum_path" >> "$GITHUB_OUTPUT"
+
+      - name: Verify packaged asset metadata (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        shell: bash
+        env:
+          ASSET_PATH: ${{ steps.package.outputs.asset_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+        run: |
+          set -euo pipefail
+
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum -c "$CHECKSUM_PATH"
+          else
+            shasum -a 256 -c "$CHECKSUM_PATH"
+          fi
+
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            lipo_info="$(lipo -info "$ASSET_PATH")"
+            echo "$lipo_info"
+            echo "$lipo_info" | grep -q "arm64"
+            echo "$lipo_info" | grep -q "x86_64"
+            codesign --verify --verbose=2 "$ASSET_PATH"
+            spctl --assess --type execute --verbose=4 "$ASSET_PATH"
+          else
+            file "$ASSET_PATH" | grep -Eiq 'x86[-_ ]64'
+          fi
+
+      - name: Verify packaged asset metadata (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        env:
+          ASSET_PATH: ${{ steps.package.outputs.asset_path }}
+          CHECKSUM_PATH: ${{ steps.package.outputs.checksum_path }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $checksumLine = (Get-Content -Path $env:CHECKSUM_PATH -Raw).Trim()
+          $expectedHash = ($checksumLine -split '\s+')[0].ToLowerInvariant()
+          $actualHash = (Get-FileHash -Algorithm SHA256 -Path $env:ASSET_PATH).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "Checksum mismatch for $env:ASSET_PATH"
+          }
+
+          [byte[]]$bytes = Get-Content -Path $env:ASSET_PATH -AsByteStream
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machine -ne 0x8664) {
+            throw ("Unexpected PE machine type: 0x{0:X}" -f $machine)
+          }
+
+          $signature = Get-AuthenticodeSignature $env:ASSET_PATH
+          if ($signature.Status -ne "Valid") {
+            throw "Authenticode signature is invalid for packaged asset: $($signature.Status)"
+          }
 
       - name: Upload asset and checksum to release
         env:

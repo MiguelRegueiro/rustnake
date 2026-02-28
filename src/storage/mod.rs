@@ -304,6 +304,10 @@ pub fn save_config(config: &AppConfig) -> Result<(), String> {
     save_config_to_path(&path, config)
 }
 
+pub fn config_path_for_current_user() -> PathBuf {
+    config_path()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
