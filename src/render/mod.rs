@@ -4,6 +4,8 @@
 use crate::core::Game;
 use crate::i18n;
 use crate::layout::{Layout, SizeCheck};
+use crate::storage::HighScores;
+use crate::utils::Difficulty;
 use crate::utils::Language;
 use std::io::Write;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -371,6 +373,148 @@ pub fn draw_menu(
     let info_y = menu_start_y + 5 + options.len() as u16;
     draw_centered_line(info_y, term_width, i18n::menu_navigation_hint(language));
     draw_centered_line(info_y + 1, term_width, i18n::menu_confirm_hint(language));
+
+    let _ = std::io::stdout().flush();
+}
+
+pub fn draw_high_scores_menu(
+    high_scores: &HighScores,
+    term_width: u16,
+    term_height: u16,
+    language: Language,
+) {
+    print!("\x1b[2J\x1b[H");
+
+    let title = i18n::high_scores_menu_title(language);
+    let max_title_inner = term_width.saturating_sub(2).max(1);
+    let title_width = display_width(title).min(max_title_inner);
+    let mut title_inner_width = title_width.max(22).min(max_title_inner);
+    if (title_inner_width - title_width) % 2 != 0 {
+        title_inner_width = (title_inner_width + 1).min(max_title_inner);
+    }
+    let title_box_width = title_inner_width + 2;
+    let title_start_x = center_start(term_width, title_box_width);
+
+    let menu_height = 14u16;
+    let menu_start_y = center_start(term_height, menu_height);
+
+    print!(
+        "\x1b[{};{}H┌{}┐",
+        menu_start_y,
+        title_start_x,
+        "─".repeat((title_box_width - 2) as usize)
+    );
+    print!(
+        "\x1b[{};{}H│{}│",
+        menu_start_y + 1,
+        title_start_x,
+        " ".repeat((title_box_width - 2) as usize)
+    );
+    let title_x = title_start_x + 1 + (title_inner_width.saturating_sub(title_width) / 2);
+    print_clipped(menu_start_y + 1, title_x, title, title_inner_width);
+    print!(
+        "\x1b[{};{}H└{}┘",
+        menu_start_y + 2,
+        title_start_x,
+        "─".repeat((title_box_width - 2) as usize)
+    );
+
+    let entries = [
+        (Difficulty::Easy, high_scores.easy, "I"),
+        (Difficulty::Medium, high_scores.medium, "II"),
+        (Difficulty::Hard, high_scores.hard, "III"),
+        (Difficulty::Extreme, high_scores.extreme, "IV"),
+    ];
+
+    let max_label_width = entries
+        .iter()
+        .map(|(difficulty, _, _)| display_width(i18n::difficulty_label(language, *difficulty)))
+        .max()
+        .unwrap_or(1);
+    let max_score_width = entries
+        .iter()
+        .map(|(_, score, _)| display_width(&score.to_string()))
+        .max()
+        .unwrap_or(1);
+    let rank_width = entries
+        .iter()
+        .map(|(_, _, rank)| display_width(rank))
+        .max()
+        .unwrap_or(1);
+
+    let card_inner_width = (max_label_width.max(max_score_width).max(rank_width) + 2).clamp(8, 16);
+    let card_width = card_inner_width + 2;
+    let gap = 2u16;
+    let cards_y = menu_start_y + 4;
+
+    let total_horizontal_width = 4 * card_width + 3 * gap;
+    let use_two_rows = total_horizontal_width > term_width.saturating_sub(2);
+
+    let draw_card = |x: u16, y: u16, difficulty: Difficulty, score: u32, rank: &str| {
+        let label = i18n::difficulty_label(language, difficulty);
+        let score_text = score.to_string();
+
+        print!(
+            "\x1b[{};{}H┌{}┐",
+            y,
+            x,
+            "─".repeat(card_inner_width as usize)
+        );
+        for line_y in (y + 1)..=(y + 3) {
+            print!(
+                "\x1b[{};{}H│{}│",
+                line_y,
+                x,
+                " ".repeat(card_inner_width as usize)
+            );
+        }
+        print!(
+            "\x1b[{};{}H└{}┘",
+            y + 4,
+            x,
+            "─".repeat(card_inner_width as usize)
+        );
+
+        let rank_x = x + 1 + (card_inner_width.saturating_sub(display_width(rank)) / 2);
+        print_clipped(y + 1, rank_x, rank, card_inner_width);
+
+        let label_x = x + 1 + (card_inner_width.saturating_sub(display_width(label)) / 2);
+        print_clipped(y + 2, label_x, label, card_inner_width);
+
+        let score_x = x + 1 + (card_inner_width.saturating_sub(display_width(&score_text)) / 2);
+        print_clipped(y + 3, score_x, &score_text, card_inner_width);
+    };
+
+    let back_y = if use_two_rows {
+        let row_width = 2 * card_width + gap;
+        let row_start_x = center_start(term_width, row_width);
+        for (index, (difficulty, score, rank)) in entries.iter().enumerate() {
+            let row = (index / 2) as u16;
+            let col = (index % 2) as u16;
+            let x = row_start_x + col * (card_width + gap);
+            let y = cards_y + row * 6;
+            draw_card(x, y, *difficulty, *score, rank);
+        }
+        cards_y + 12
+    } else {
+        let cards_start_x = center_start(term_width, total_horizontal_width);
+        for (index, (difficulty, score, rank)) in entries.iter().enumerate() {
+            let x = cards_start_x + index as u16 * (card_width + gap);
+            draw_card(x, cards_y, *difficulty, *score, rank);
+        }
+        cards_y + 6
+    };
+
+    draw_centered_line(
+        back_y,
+        term_width,
+        &format!("> {}", i18n::menu_back(language)),
+    );
+    draw_centered_line(
+        back_y + 2,
+        term_width,
+        i18n::high_scores_back_hint(language),
+    );
 
     let _ = std::io::stdout().flush();
 }

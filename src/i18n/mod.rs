@@ -87,6 +87,16 @@ pub fn high_scores_menu_title(language: Language) -> &'static str {
     }
 }
 
+pub fn high_scores_back_hint(language: Language) -> &'static str {
+    match language {
+        Language::En => "Press ENTER/SPACE to go back",
+        Language::Es => "Pulsa ENTER/ESPACIO para volver",
+        Language::Ja => "ENTER/SPACE で戻る",
+        Language::Pt => "Pressione ENTER/ESPAÇO para voltar",
+        Language::Zh => "按 ENTER/SPACE 返回",
+    }
+}
+
 pub fn menu_back(language: Language) -> &'static str {
     match language {
         Language::En => "Back",
@@ -495,6 +505,7 @@ pub fn minimum_ui_width(language: Language) -> u16 {
     let mut max_width = text_width(controls_text(language))
         .max(text_width(menu_navigation_hint(language)))
         .max(text_width(menu_confirm_hint(language)))
+        .max(text_width(high_scores_back_hint(language)))
         .max(text_width(small_window_hint(language)))
         .max(text_width(difficulty_menu_title(language)))
         .max(text_width(high_scores_menu_title(language)))
@@ -534,6 +545,7 @@ mod tests {
         assert!(!menu_back(language).is_empty());
         assert!(!difficulty_menu_title(language).is_empty());
         assert!(!high_scores_menu_title(language).is_empty());
+        assert!(!high_scores_back_hint(language).is_empty());
         assert!(!menu_navigation_hint(language).is_empty());
         assert!(!menu_confirm_hint(language).is_empty());
         assert!(!language_name(language).is_empty());
