@@ -13,6 +13,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ### Changed
 - README support and trust policy copy was tightened to reduce redundancy while preserving tier/policy clarity.
 - README now explicitly distinguishes maintainer manual testing scope (Linux) from CI-only validation scope (macOS/Windows binaries).
+- High-scores menu UX was refined: score rows are no longer selectable, `Back` is the only selectable action, and the screen now uses a compact responsive card layout for all difficulties.
 
 ### Fixed
 No changes yet.
