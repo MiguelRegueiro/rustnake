@@ -31,12 +31,14 @@ cargo install rustnake --locked --force
 - Tier 1 binary: Linux (`x86_64-unknown-linux-gnu`) is fully supported.
 - Tier 2 binaries: macOS and Windows are convenience distributions with CI smoke checks.
 - Cargo install is supported across Linux/macOS/Windows and is outside binary tier classification.
+- Maintainer manual testing: Linux only (Arch and Fedora), using both Cargo and release binaries.
+- macOS/Windows binaries are CI-validated (build + smoke checks) but not manually tested by maintainer.
 
-| Platform | Tier | Support |
+| Platform | Tier | Validation |
 | --- | --- | --- |
-| Linux | Tier 1 | Recommended, fully supported |
-| macOS | Tier 2 | Convenience binary (unsigned) |
-| Windows | Tier 2 | Convenience binary (unsigned) |
+| Linux | Tier 1 | Manual testing + CI |
+| macOS | Tier 2 | CI only (unsigned convenience binary) |
+| Windows | Tier 2 | CI only (unsigned convenience binary) |
 
 ### Binary Trust Policy
 
